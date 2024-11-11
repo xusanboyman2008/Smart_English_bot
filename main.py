@@ -10,12 +10,12 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, TelegramObject, Update, \
-    ReplyKeyboardMarkup, KeyboardButton, InputFile, FSInputFile
+    ReplyKeyboardMarkup, KeyboardButton, FSInputFile
 from sqlalchemy import Column, Integer, String, DateTime, func, select, ForeignKey, Boolean
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase
 
-token = '7874928619:AAGNme_YdLYCHUSYwpCHClC524UzxxZvR3I'
+token = '7874928619:AAGq2IJMNjvUjpJ2vU3N9L85frcGhhykDKU'
 bot = Bot(token=token)
 dp = Dispatcher()
 
@@ -34,10 +34,12 @@ class User(Base):
     __tablename__ = 'Users'
     id = Column(Integer, primary_key=True)
     tg_id = Column(Integer, nullable=False, unique=True)
+    FIO = Column(String, nullable=True)
     tg_name = Column(String, nullable=False)
     tg_username = Column(String, nullable=True)
     tg_number = Column(Integer, unique=True, nullable=True)
     gender = Column(String, nullable=True)
+    born_year = Column(Integer, nullable=True)
     language = Column(String, nullable=False)
     role = Column(String, nullable=False, default='User')
     registered = Column(Boolean, nullable=False, default=False)
@@ -50,6 +52,7 @@ class Registering(Base):
     gender = Column(String, nullable=False)
     number = Column(String, nullable=False)
     course = Column(String, nullable=False)
+    born_year = Column(String, nullable=False)
     level = Column(String, nullable=True, default='Not chosen')
     time = Column(String, nullable=True)
     telegram_information = Column(Integer, ForeignKey(User.tg_id, ondelete='CASCADE'))
@@ -93,37 +96,36 @@ async def add_user(tg_id: int, username: str, name: str) -> None:
 
 async def set_user_language(tg_id, language: str):
     async with async_session() as session:
+        # Check if the user exists
         stmt = select(User).where(User.tg_id == tg_id)
         result = await session.execute(stmt)
         user = result.scalar_one_or_none()
 
+        # If user exists, update their language
         if user:
             user.language = language
         else:
-            new_user = User(tg_id=tg_id, language=language, tg_name="Unknown")
-            session.add(new_user)
+            # If user does not exist, create a new entry
+            session.add(User(tg_id=tg_id, language=language))
 
+        # Commit the changes
         await session.commit()
 
 
-async def register_result_en(fullname: str, writing: str, listening, reading: str, speaking: str,image: str,band: str):
+async def register_result_en(fullname: str, writing: str, listening, reading: str, speaking: str, image: str,
+                             band: str):
     async with async_session() as session:
-        new_user = Results_English(
-            fullname=fullname,
-            writing=writing,
-            listening=listening,
-            reading=reading,
-            speaking=speaking,
-            image=image,
-            Overall_Band=band)
+        new_user = Results_English(fullname=fullname, writing=writing, listening=listening, reading=reading,
+                                   speaking=speaking, image=image, Overall_Band=band)
         session.add(new_user)
         await session.commit()
 
 
-async def register(tg_id, name: str, phone_number: str, course, level: str, course_time: str, user_gender: str) -> None:
+async def register(tg_id, name: str, phone_number: str, course, level: str, course_time: str, user_gender: str,
+                   born_year: str) -> None:
     async with async_session() as session:
         new_user = Registering(user_name=name, number=phone_number, course=course, level=level, time=course_time,
-                               gender=user_gender, telegram_information=tg_id)
+                               gender=user_gender, telegram_information=tg_id, born_year=born_year)
         session.add(new_user)
         await session.commit()
 
@@ -147,6 +149,8 @@ async def get_results_en():
 # -------------------------------------time-----------------------------------------------------------------------------#
 current_time = localtime()
 current_year = current_time.tm_year
+start_time = datetime.now()
+formatted_time = start_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 # -------------------------------------State Group----------------------------------------------------------------------#
@@ -161,6 +165,19 @@ class Register(StatesGroup):
     month = State()
     day = State()
     time = State()
+    fake_number = State()
+    number2 = State()
+    fake_gender = State()
+
+
+class Register_full(StatesGroup):
+    start = State()
+    fullname = State()
+    number = State()
+    gender = State()
+    year = State()
+    month = State()
+    day = State()
     fake_number = State()
     number2 = State()
     fake_gender = State()
@@ -212,7 +229,7 @@ async def scores(language, category, before, band):
     if category == 'photo':
         if band and before:
             inline_button.append([InlineKeyboardButton(text=text1, callback_data='menu_'),
-                InlineKeyboardButton(text=text2, callback_data=f'score_{before}_{band}')])
+                                  InlineKeyboardButton(text=text2, callback_data=f'score_{before}_{band}')])
         else:
             inline_button.append([InlineKeyboardButton(text=text1, callback_data='menu_')])
     else:
@@ -223,7 +240,8 @@ async def scores(language, category, before, band):
             # Add fire emoji for scores higher than 7
             emoji = " 🔥" if score > 7 else ""
             button_text = f"{score}{emoji}"
-            b = row.append(InlineKeyboardButton(text=button_text, callback_data=f"score_{str(category)}_{score}{emoji}"))
+            b = row.append(
+                InlineKeyboardButton(text=button_text, callback_data=f"score_{str(category)}_{score}{emoji}"))
             if len(row) == 3:
                 inline_button.append(row)
                 row = []
@@ -235,7 +253,7 @@ async def scores(language, category, before, band):
         # Adding cancel and back buttons
         if band and before:
             inline_button.append([InlineKeyboardButton(text=text1, callback_data='menu_'),
-                InlineKeyboardButton(text=text2, callback_data=f'score_{before}_{band}')])
+                                  InlineKeyboardButton(text=text2, callback_data=f'score_{before}_{band}')])
         else:
             inline_button.append([InlineKeyboardButton(text=text1, callback_data='menu_')])
 
@@ -262,8 +280,7 @@ async def gender(language, is_state):
             row.append(InlineKeyboardButton(text=f"{i.split('_')[1].split('.')[1]}",
                                             callback_data=f"state.{i.split('_')[0]}_{i.split('_')[1]}"))
         else:
-            row.append(InlineKeyboardButton(text=f"{i.split('_')[1].split('.')[1]}",
-                                            callback_data=f"{i}"))
+            row.append(InlineKeyboardButton(text=f"{i.split('_')[1].split('.')[1]}", callback_data=f"{i}"))
         if len(row) == 2:  # Corrected here
             inline_button.append(row)
             row = []
@@ -277,9 +294,24 @@ async def gender(language, is_state):
 
 async def home(language):
     if language == 'uz':
-        menu = ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'voice.🔊 Audio materiallar', 'reply.📌 '
-                                                                                                   'Shikoyat qilish ',
-                'game.🎲 Kolgil xushlik']
+        menu = ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'audio_.🔊 Audio materiallar', 'complain_.📌 '
+                                                                                                    'Shikoyat qilish ',
+                'settings.⚙️ Sozlamalar']
+        inline_button = []
+        row = []
+        for i in menu:
+            row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f"{i.split('.')[0]}"))
+            if len(row) == 3:
+                inline_button.append(row)
+                row = []
+        if row:
+            inline_button.append(row)
+        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+        return inline_keyboard
+    if language == 'en':
+        menu = ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'audio_.🔊 Audio materiallar', 'complain_.📌 '
+                                                                                                    'Shikoyat qilish ',
+                'settings.⚙️ Sozlamalar']
         inline_button = []
         row = []
         for i in menu:
@@ -292,26 +324,13 @@ async def home(language):
         inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
         return inline_keyboard
     if language == 'ru':
-        menu = ['join_✍️: Kursga yozilish', 'resl_🏆: Natijalar', 'voce_🔊: Audio materiallar', '📌: Shikoyat qilish ',
-                'game_🎲: Kolgil xushlik']
+        menu = ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'audio_.🔊 Audio materiallar', 'complain_.📌 '
+                                                                                                    'Shikoyat qilish ',
+                'settings.⚙️ Sozlamalar']
         inline_button = []
         row = []
         for i in menu:
-            row.append(InlineKeyboardButton(text=f'{i[5:]}', callback_data=f"{i[:5]}"))
-            if len(row) == 3:
-                inline_button.append(row)
-                row = []
-        if row:
-            inline_button.append(row)
-        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
-        return inline_keyboard
-    if language == 'en':
-        menu = ['join✍️ Kursga yozilish', 'resl🏆 Natijalar', 'voce🔊 Audio materiallar', '📌 Shikoyat qilish ',
-                'game🎲 Kolgil xushlik']
-        inline_button = []
-        row = []
-        for i in menu:
-            row.append(InlineKeyboardButton(text=f'{i[4:]}', callback_data=f"{i[:4]}"))
+            row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f"{i.split('.')[0]}"))
             if len(row) == 3:
                 inline_button.append(row)
                 row = []
@@ -392,6 +411,8 @@ async def tuition(language):
 
 async def month(language, gender):
     # Month dictionary with custom names
+    inline_buttons = []
+    row = []
     match language:
         case 'uz':
             months = {12: '12Dekabr', 1: '01Yanvar', 2: '02Fevral', 3: '03Mart', 4: '04Aprel', 5: '05May', 6: '06Iyul',
@@ -405,10 +426,6 @@ async def month(language, gender):
         case _:
             months = {12: '12Dekabr', 1: '01Yanvar', 2: '02Fevral', 3: '03Mart', 4: '04Aprel', 5: '05May', 6: '06Iyul',
                       7: '07Iyun', 8: '08Avgust', 9: '09Sentabr', 10: '10Oktabr', 11: '11Noyabr', }
-
-    # Create buttons for each month
-    inline_buttons = []
-    row = []
 
     for num, label in months.items():
         row.append(InlineKeyboardButton(text=label[2:], callback_data=f'month_{label[:2]}_{label}'))
@@ -627,6 +644,69 @@ async def time_en(language, day):
     return inline_keyboard
 
 
+async def settings(language):
+    text = {'uz': ['registration/full_.🖊️ Toliq registratsiyadan o\'tish', 'menu_.🏠 Bosh menu'],
+        'ru': ['registration/full_.🖊️ Toliq registratsiyadan o\'tish', 'menu_.🏠 Bosh menu'],
+        'en': ['registration/full_.🖊️ Toliq registratsiyadan o\'tish', 'menu_.🏠 Bosh menu'], }
+    inline_button = []
+    row = []
+    for i in text.get(language):
+        row.append(InlineKeyboardButton(text=f'{i.split('.')[1]}', callback_data=f'{i.split('.')[0]}'))
+        if len(row) == 2:
+            inline_button.append(row)
+            row = []
+    if row:
+        inline_button.append(row)
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+
+
+async def audio_home(language):
+    text = {
+        'uz': ['/audio_home_vt_.(VT) materiallar', 'audio_home_mt_.(MT) materiallar', 'menu_.🏠 Bosh menu'],
+        'ru': ['/audio_home_vt_.(VT) materiallar', 'audio_home_mt_.(MT) materiallar', 'menu_.🏠 Bosh menu'],
+        'en': ['/audio_home_vt_.(VT) materiallar', 'audio_home_mt_.(MT) materiallar', 'menu_.🏠 Bosh menu'],
+    }
+    inline_button = []
+    row = []
+
+    for i in text.get(language):
+        row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}'))
+        if len(row) == 2:
+            inline_button.append(row)
+            row = []
+
+    if row:
+        inline_button.append(row)
+
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+
+
+async def audio_month(language, data):
+    inline_button = []
+    row = []
+
+    for i in range(17):
+        row.append(InlineKeyboardButton(text=f'{i:02} Month', callback_data=f'audio_month_{i}_{data}'))
+        if len(row) == 3:
+            inline_button.append(row)
+            row = []
+
+    if row:
+        inline_button.append(row)
+
+    text = {
+        'uz': 'menu_.🏠 Bosh sahifa',
+        'ru': 'menu_.🏠 Bosh sahifa',
+        'en': 'menu_.🏠 Bosh sahifa',
+    }
+
+    inline_button.append([InlineKeyboardButton(text=text.get(language).split('_')[1],
+                                               callback_data=f"{text.get(language).split('_')[0]}")])
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+
 # ---------------------------------------functions ---------------------------------------------------------------------#
 
 
@@ -664,42 +744,57 @@ async def download_image(bot: Bot, message: Message, name: str) -> str | None:
         return None
 
 
-
-async def send_certificate(bot: Bot, chat_id: int):
+async def send_certificate(bot: Bot, chat_id: int, callback_query):
     async with async_session() as session:
-        # Fetch the most recent certificate
-        result = await session.execute(
-            select(Results_English).order_by(Results_English.id.desc())
-        )
-        certificates = result.scalars().all()
+        try:
+            # Fetch the most recent certificate
+            result = await session.execute(select(Results_English).order_by(Results_English.id.desc())
+                                           # Limit to the latest
+                                           )
+            certificates = result.scalars().all()
 
-        if not certificates:
-            await bot.send_message(chat_id, "No certificate found.")
-            return
+            if not certificates:
+                await bot.send_message(chat_id, "No certificate found.")
+                return
+            for certificate in certificates:
+                # Prepare the message text for each certificate
+                text = (f"📋 Certificate Information:\n\n"
+                        f"👤 Full Name: {certificate.fullname}\n"
+                        f"🏅 Band Score: {certificate.Overall_Band}\n\n"
+                        f"🗣 Speaking: {certificate.speaking}\n"
+                        f"✍️ Writing: {certificate.writing}\n"
+                        f"👂 Listening: {certificate.listening}\n"
+                        f"📖 Reading: {certificate.reading}\n\n"
+                        f"✨Smart English\n<a href='http://instagram.com/smart.english.official'>Instagram</a>|<a href='https://t.me/SMARTENGLISH2016'>Telegram</a>|<a href='https://www.youtube.com/channel/UCu8wC4sBtsVK6befrNuN7bw'>You Tube</a>|<a href='https://t.me/Smart_Food_official'>Smart Food</a>|<a href='https://t.me/xusanboyman200'>Programmer</a>"
 
-        # Iterate over certificates and send them
-        for certificate in certificates:
-            # Prepare the message text for each certificate
-            text = (
-                f"📋 Certificate Information:\n\n"
-                f"👤 Full Name: {certificate.fullname}\n"
-                f"🏅 Band Score: {certificate.Overall_Band}\n\n"
-                f"🗣 Speaking: {certificate.speaking}\n"
-                f"✍️ Writing: {certificate.writing}\n"
-                f"👂 Listening: {certificate.listening}\n"
-                f"📖 Reading: {certificate.reading}\n"
-            )
+                        )
 
-            # Get the certificate image path
-            image_path = certificate.image
-            print(f"Image path: {image_path}")  # Debugging: print the path
+                # Get the certificate image path
+                image_path = certificate.image
 
-            # Check if the image exists
-            if os.path.exists(image_path):
-                photo = FSInputFile(image_path)
-                await bot.send_photo(chat_id=chat_id, photo=photo, caption=text)
-            else:
-                await bot.send_message(chat_id, f"Certificate image not found for {certificate.fullname}.")
+                # Check if the image exists
+                if os.path.exists(image_path):
+                    photo = FSInputFile(image_path)
+                    await bot.send_photo(chat_id=chat_id, photo=photo, caption=text, parse_mode='HTML')
+                else:
+                    await bot.send_message(chat_id, f"Certificate image not found for {certificate.fullname}.",
+                                           parse_mode='HTML')
+            await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
+
+            language = await get_user_language(tg_id=callback_query.from_user.id)
+            user_id = callback_query.from_user.id
+
+            language_map = {'ru': 'ru', 'en': 'en', 'uz': 'Bosh menu'}
+
+            # Use the language map to determine the appropriate response text
+            await bot.send_message(text=language_map.get(language, 'en'), chat_id=user_id,
+                                   reply_markup=await home(language))
+
+
+        except Exception as e:
+            await bot.send_message(chat_id, f"An error occurred: {str(e)}")
+
+
 # -----------------------------------------Messages---------------------------------------------------------------------#
 @dp.message(CommandStart())
 async def start(message: Message, state: FSMContext):
@@ -708,14 +803,19 @@ async def start(message: Message, state: FSMContext):
     if not existing_user:
         await message.answer('🇺🇿: Assalomu alaykum botimizga xush kelibsiz\n🇷🇺: Privet \n🇺🇸: Hello Mr or Ms',
                              reply_markup=await languages())
+        await delete_previous_messages(message.message_id, message.from_user.id)
+        return
     else:
         language = await get_user_language(user_id)
         await bot.send_message(chat_id=user_id, text={"ru": "ru", "en": "en", "uz": "Bosh menu"}.get(language, "en"),
                                reply_markup=await home(language))
-    await state.clear()
-    await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id)
-    await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id - 1)
-    await delete_previous_messages(message.message_id, message.from_user.id)
+        await state.clear()
+    try:
+        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id)
+        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id - 1)
+        await delete_previous_messages(message.message_id, message.from_user.id)
+    except TelegramBadRequest as e:
+        pass
 
 
 @dp.callback_query(F.data.startswith('menu_'))
@@ -740,19 +840,16 @@ async def menu(callback_query: CallbackQuery):
 
 @dp.callback_query(F.data.startswith('lan_'))
 async def language(callback_query: CallbackQuery):
-    existing_user = await get_user_by_tg_id(callback_query.from_user.id)
-    if not existing_user:
-        await bot.send_message(chat_id=callback_query.from_user.id ,text='🇺🇿: Assalomu alaykum botimizga xush kelibsiz\n🇷🇺: Privet \n🇺🇸: Hello Mr or Ms',
-                             reply_markup=await languages())
-        if callback_query.from_user.username:
-            await add_user(callback_query.from_user.id,callback_query.from_user.username,callback_query.from_user.full_name)
-        return
-    else:
-        language = callback_query.data.split('_')[1]
-        await set_user_language(tg_id=callback_query.from_user.id, language=language)
-        await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
-                                    text={"ru": "ru", "en": "en", "uz": "Bosh menu"}.get(language),
-                                    reply_markup=await home(language))
+    if callback_query.from_user.username:
+        await add_user(callback_query.from_user.id, callback_query.from_user.username,
+                       callback_query.from_user.full_name)
+    language = callback_query.data.split('_')[1]
+    await set_user_language(tg_id=callback_query.from_user.id, language=language)
+    await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
+                                text={"ru": "ru", "en": "en", "uz": "Bosh menu"}.get(language),
+                                reply_markup=await home(language))
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    return
 
 
 @dp.callback_query(F.data.startswith('courses_'))
@@ -799,8 +896,8 @@ async def registers(callback_query: CallbackQuery, state: FSMContext):
 async def year_callback(message: Message, state: FSMContext):
     language = await get_user_language(tg_id=message.from_user.id)
     a = False
-    for i in message.text.replace(' ', '').replace('  ',''):
-        if i in str([1,2,3,4,5,6,7,8,9,0]):
+    for i in message.text.replace(' ', '').replace('  ', ''):
+        if i in str([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]):
             a = True
     if a:
         await state.set_state(Register.fullname)
@@ -1142,18 +1239,21 @@ async def confirm(callback_query: CallbackQuery, state: FSMContext):
     gender = data.get('fake_gender')
     fullname = data.get('fullname')
     level = data.get('level')
+    day = data.get('day')
+    year = data.get('year')
+    month = data.get('month')
+    born_year = f'{day:02}/{month}/{year}'
     if callback_query.from_user.username:
-        # Register the user with the correct data
         await register(tg_id=callback_query.from_user.username, name=fullname, phone_number=number, course=course,
                        level=level,  # Pass the correct value here
                        course_time=time1,  # Pass the correct value here
-                       user_gender=gender)
+                       user_gender=gender, born_year=born_year)
     else:
         # Register the user with the correct data
         await register(tg_id=callback_query.from_user.id, name=fullname, phone_number=number, course=course,
                        level=level,  # Pass the correct value here
                        course_time=time1,  # Pass the correct value here
-                       user_gender=gender)
+                       user_gender=gender, born_year=born_year)
     match language:
         case 'uz':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
@@ -1283,7 +1383,7 @@ async def add_result(message: Message, state: FSMContext):
             text = "Certificat kimga tegishli ekanligini to'liq yozing \nMisol uchun: Akmaljon Khusanov"
     await message.answer(text=text)
     await state.set_state(Certificate.fullname)
-    await delete_previous_messages(message.message_id,message.from_user.id)
+    await delete_previous_messages(message.message_id, message.from_user.id)
 
 
 @dp.callback_query(F.data.startswith('score_add_result_'))
@@ -1356,9 +1456,9 @@ async def speaking(callback_query: CallbackQuery, state: FSMContext):
             text = 'Writing dan nech baho olgan '
         case _:
             text = 'Writing dan nech baho olgan'
-    await bot.send_message(chat_id=callback_query.from_user.id,
-                                text=text, reply_markup=await scores(language, f'writing', 'fullname', f'{fullname}'))
-    await delete_previous_messages(callback_query.message.message_id,callback_query.from_user.id)
+    await bot.send_message(chat_id=callback_query.from_user.id, text=text,
+                           reply_markup=await scores(language, f'writing', 'fullname', f'{fullname}'))
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
 
 @dp.callback_query(F.data.startswith('score_writing_'))
@@ -1439,7 +1539,7 @@ async def image(message: Message, state: FSMContext):
     speaking = data.get('speaking')
     listening = data.get('listening')
     file_id = message.photo[-1].file_id
-    await state.update_data(image=f'Certificate/{name.replace(' ','_')}.jpg')
+    await state.update_data(image=f'Certificate/{name.replace(' ', '_')}.jpg')
     band = (float(reading[:1]) + float(writing[:1]) + float(speaking[:1]) + float(listening[:1])) / 4
     decimal_part = str(band).split('.')[1]  # Extract the decimal part
     if int(decimal_part) >= 75:
@@ -1457,25 +1557,18 @@ async def image(message: Message, state: FSMContext):
         return
 
     # Prepare the message text with the certificate details
-    text = (
-        f"📋 Certificate Information:\n\n"
-        f"👤 Full Name: {name}\n"
-        f"🏅 Band Score: {band}\n\n"
-        f"🗣 Speaking: {speaking}\n"
-        f"✍️ Writing: {writing}\n"
-        f"👂 Listening: {listening}\n"
-        f"📖 Reading: {reading}\n\n"
-        f"<a href='https://t.me/xusanboyman'>Telegram number of programmer</a>"
-    )
+    text = (f"📋 Certificate Information:\n\n"
+            f"👤 Full Name: {name}\n"
+            f"🏅 Band Score: {band}\n\n"
+            f"🗣 Speaking: {speaking}\n"
+            f"✍️ Writing: {writing}\n"
+            f"👂 Listening: {listening}\n"
+            f"📖 Reading: {reading}\n\n"
+            f"<a href='https://t.me/xusanboyman'>Telegram number of programmer</a>")
 
     # Send the photo with the certificate information
-    await bot.send_photo(
-        chat_id=message.from_user.id,
-        photo=file_id,  # Use the file_id stored in state
-        caption=text,
-        reply_markup=await confirmt(language, True),
-        parse_mode='HTML'
-    )
+    await bot.send_photo(chat_id=message.from_user.id, photo=file_id,  # Use the file_id stored in state
+                         caption=text, reply_markup=await confirmt(language, True), parse_mode='HTML')
     await delete_previous_messages(message.message_id, message.from_user.id)
 
 
@@ -1491,20 +1584,81 @@ async def stagedconifer(callback_query: CallbackQuery, state: FSMContext):
     listening = str(data.get('listening'))
     band = str(data.get('band'))
     match language:
-            case 'ru':
-                text = 'Muaffaqiyatli saqalandi'
-            case 'uz':
-                text = 'Muaffaqiyatli saqalandi'
-            case _:
-                text = 'Muaffaqiyatli saqalandi'
-    await register_result_en(fullname,writing,listening,reading,speaking,image, band)
+        case 'ru':
+            text = 'Muaffaqiyatli saqalandi'
+        case 'uz':
+            text = 'Muaffaqiyatli saqalandi'
+        case _:
+            text = 'Muaffaqiyatli saqalandi'
+    await register_result_en(fullname, writing, listening, reading, speaking, image, band)
     await bot.send_message(text=text, chat_id=callback_query.from_user.id, reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text='🏠 Bosh sahifa', callback_data='menu_')]]))
+        inline_keyboard=[[InlineKeyboardButton(text='🏠 Bosh sahifa', callback_data='menu_')]]))
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
 
+# ------------------------------------  Audio --------------------------------------------------------------------------#
+@dp.callback_query(F.data.startswith('audio_'))
+async def audiol(callback_query: CallbackQuery):
+    language = await get_user_language(callback_query.from_user.id)
+    text = {
+        'uz': 'Sizga kerakli audio qaysin bolimdan',
+        'ru': 'Sizga kerakli audio qaysin bolimdan',
+        'en': 'Sizga kerakli audio qaysin bolimdan',
+    }
+    current_text = text.get(language)
+    current_markup = await audio_home(language)
+
+    # Check if the content or markup has changed
+    if callback_query.message.text != current_text or callback_query.message.reply_markup != current_markup:
+        await bot.edit_message_text(
+            message_id=callback_query.message.message_id,
+            text=current_text,
+            chat_id=callback_query.from_user.id,
+            reply_markup=current_markup
+        )
+
+    # Delete previous message if necessary
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
 
+@dp.callback_query(F.data.startswith('/audio_home_'))
+async def audio_monthl(callback_query: CallbackQuery):
+    data = callback_query.data.split('_')[2]
+    language = await get_user_language(callback_query.from_user.id)
+    text = {
+        'uz': 'Oyingizni tanlang',
+        'ru': 'Oyingizni tanlang',
+        'en': 'Oyingizni tanlang',
+    }
+    await bot.send_message(chat_id=callback_query.from_user.id, text=text.get(language),
+                           reply_markup=await audio_month(language, data))
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+
+@dp.callback_query(F.data.startswith('audio_month_'))
+async def audio_month_level(callback_query: CallbackQuery):
+    language = await get_user_language(callback_query.from_user.id)
+    month = callback_query.data.split('_')[2]
+    data = callback_query.data.split('_')[3]
+
+    audio_folder = f'./audio/{data}/{month}'
+
+    # Ensure the folder exists
+    if not os.path.exists(audio_folder):
+        await bot.send_message(callback_query.from_user.id, "No audio files available for this month.")
+        return
+
+    # Send audio files
+    for filename in os.listdir(audio_folder):
+        if filename.endswith('.mp3'):
+            file_path = os.path.join(audio_folder, filename)
+            try:
+                await bot.send_audio(callback_query.from_user.id, FSInputFile(file_path))
+            except Exception as e:
+                print(f"Failed to send {filename}: {e}")
+                await bot.send_message(callback_query.from_user.id, f"Failed to send {filename}: {e}")
+
+    # Optionally, you can call the message deletion function here as well
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 # ------------------------------------  Certificates -------------------------------------------------------------------#
 
 @dp.callback_query(F.data.startswith("results"))
@@ -1522,14 +1676,21 @@ async def results(callback_query: CallbackQuery):
         await bot.edit_message_text(message_id=callback_query.message.message_id,
                                     text='Smart English o\'quv markazdagi kurslardan birini tanlang',
                                     chat_id=callback_query.from_user.id, reply_markup=await result_home(language))
+    try:
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 2)
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 1)
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    except TelegramBadRequest as e:
+        pass
 
 
 @dp.callback_query(F.data.startswith("result_"))
 async def result(callback_query: CallbackQuery):
-    language = await get_user_language(callback_query.from_user.id)
     data = callback_query.data.split('_')[1]
     if data == 'English':
-        await send_certificate(bot, callback_query.from_user.id)
+        await send_certificate(bot, callback_query.from_user.id, callback_query)
+
+
 # ------------------------------------Middleware------------------------------------------------------------------------#
 class TestMiddleware(BaseMiddleware):
     async def __call__(self, handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]], event: TelegramObject,
@@ -1561,7 +1722,7 @@ async def deleter(message: Message):
 # --------------------------------- Polling the bot ---------------------------------------------------------------------#
 async def main():
     await init()
-    print(f'Bot stareted at {current_time}')
+    print(f'Bot stareted at {formatted_time}')
     await dp.start_polling(bot, skip_updates=True)
 
 
@@ -1569,6 +1730,6 @@ if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print(f'Bot stopped by Ctrl+C at {current_time}')
+        print(f'Bot stopped by Ctrl+C at {formatted_time}')
     except Exception as e:
         print(f'Unexpected error: {e}')
