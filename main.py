@@ -1456,7 +1456,7 @@ async def speaking(callback_query: CallbackQuery, state: FSMContext):
             text = 'Writing dan nech baho olgan '
         case _:
             text = 'Writing dan nech baho olgan'
-    await bot.send_message(chat_id=callback_query.from_user.id, text=text,
+    await bot.edit_message_text(message_id=callback_query.message.message_id,chat_id=callback_query.from_user.id, text=text,
                            reply_markup=await scores(language, f'writing', 'fullname', f'{fullname}'))
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
