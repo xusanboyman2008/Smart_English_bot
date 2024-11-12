@@ -1424,7 +1424,7 @@ async def fullname(message: Message, state: FSMContext):
         case _:
             text = 'Speaknig dan nech baho olgansiz'
     await state.set_state(Register.start)
-    await message.answer(text=text, reply_markup=await scores(language, 'speaking', 'add_result', f'{fullname}'))
+    await bot.send_message(chat_id=message.from_user.id,text=text, reply_markup=await scores(language, 'speaking', 'add_result', f'{fullname}'))
 
 
 @dp.callback_query(F.data.startswith('score_fullname_'))
