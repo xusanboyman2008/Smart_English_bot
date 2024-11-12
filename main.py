@@ -163,6 +163,7 @@ class Register(StatesGroup):
     level = State()
     year = State()
     month = State()
+    fake_month = State()
     day = State()
     time = State()
     fake_number = State()
@@ -415,17 +416,50 @@ async def month(language, gender):
     row = []
     match language:
         case 'uz':
-            months = {12: '12Dekabr', 1: '01Yanvar', 2: '02Fevral', 3: '03Mart', 4: '04Aprel', 5: '05May', 6: '06Iyul',
-                      7: '07Iyun', 8: '08Avgust', 9: '09Sentabr', 10: '10Oktabr', 11: '11Noyabr'}
+            months = {
+                12: '12🎄 Dekabr',  # December (Christmas tree)
+                1: '01❄️ Yanvar',  # January (snowflake)
+                2: '02🌸 Fevral',  # February (flower)
+                3: '03🌷 Mart',  # March (spring flowers)
+                4: '04🌱 Aprel',  # April (growth, spring)
+                5: '05🌞 May',  # May (sun, summer approach)
+                6: '06☀️ Iyun',  # June (hot weather)
+                7: '07🌞 Iyun',  # July (summer)
+                8: '08🌅 Avgust',  # August (sunrise, end of summer)
+                9: '09🎒 Sentabr',  # September (back to school)
+                10: '10🍂 Oktabr',  # October (fall leaves)
+                11: '11🌧️ Noyabr'  # November (rain)
+            }
         case 'ru':
-            months = {12: '12Dekabr', 1: '01Yanvar', 2: '02Fevral', 3: '03Mart', 4: '04Aprel', 5: '05May', 6: '06Iyul',
-                      7: '07Iyun', 8: '08Avgust', 9: '09Sentabr', 10: '10Oktabr', 11: '11Noyabr', }
-        case 'en':
-            months = {12: '12Dekabr', 1: '01Yanvar', 2: '02Fevral', 3: '03Mart', 4: '04Aprel', 5: '05May', 6: '06Iyul',
-                      7: '07Iyun', 8: '08Avgust', 9: '09Sentabr', 10: '10Oktabr', 11: '11Noyabr', }
+            months = {
+                12: '12🎄 Dekabr',  # December (Christmas tree)
+                1: '01❄️ Yanvar',  # January (snowflake)
+                2: '02🌸 Fevral',  # February (flower)
+                3: '03🌷 Mart',  # March (spring flowers)
+                4: '04🌱 Aprel',  # April (growth, spring)
+                5: '05🌞 May',  # May (sun, summer approach)
+                6: '06☀️ Iyun',  # June (hot weather)
+                7: '07🌞 Iyun',  # July (summer)
+                8: '08🌅 Avgust',  # August (sunrise, end of summer)
+                9: '09🎒 Sentabr',  # September (back to school)
+                10: '10🍂 Oktabr',  # October (fall leaves)
+                11: '11🌧️ Noyabr'  # November (rain)
+            }
         case _:
-            months = {12: '12Dekabr', 1: '01Yanvar', 2: '02Fevral', 3: '03Mart', 4: '04Aprel', 5: '05May', 6: '06Iyul',
-                      7: '07Iyun', 8: '08Avgust', 9: '09Sentabr', 10: '10Oktabr', 11: '11Noyabr', }
+            months = {
+                12: '12🎄 Dekabr',  # December (Christmas tree)
+                1: '01❄️ Yanvar',  # January (snowflake)
+                2: '02🌸 Fevral',  # February (flower)
+                3: '03🌷 Mart',  # March (spring flowers)
+                4: '04🌱 Aprel',  # April (growth, spring)
+                5: '05🌞 May',  # May (sun, summer approach)
+                6: '06☀️ Iyun',  # June (hot weather)
+                7: '07🌞 Iyun',  # July (summer)
+                8: '08🌅 Avgust',  # August (sunrise, end of summer)
+                9: '09🎒 Sentabr',  # September (back to school)
+                10: '10🍂 Oktabr',  # October (fall leaves)
+                11: '11🌧️ Noyabr'  # November (rain)
+            }
 
     for num, label in months.items():
         row.append(InlineKeyboardButton(text=label[2:], callback_data=f'month_{label[:2]}_{label}'))
@@ -435,14 +469,13 @@ async def month(language, gender):
     match language:
         case 'en':
             row.append(InlineKeyboardButton(text="🏠 Home", callback_data='menu_'))
-            row.append(InlineKeyboardButton(text="⬅️ Back", callback_data=f'gender_{gender}'))
+            row.append(InlineKeyboardButton(text="⬅️ Back", callback_data=f'gender_.{gender}'))
         case 'ru':
             row.append(InlineKeyboardButton(text="🏠 Home", callback_data='menu'))
-            row.append(InlineKeyboardButton(text="⬅️ Back", callback_data=f'gender_{gender}'))
+            row.append(InlineKeyboardButton(text="⬅️ Back", callback_data=f'gender_.{gender}'))
         case 'uz':
             row.append(InlineKeyboardButton(text="🏠 Bosh menu", callback_data='menu_'))
-            row.append(InlineKeyboardButton(text="⬅️ Ortga", callback_data=f'gender_{gender}'))
-
+            row.append(InlineKeyboardButton(text="⬅️ Ortga", callback_data=f'gender_.{gender}'))
     if row:  # Add any remaining buttons to the last row
         inline_buttons.append(row)
 
@@ -471,7 +504,7 @@ async def days(month, year):
     if row:  # Add any remaining buttons to the last row
         inline_buttons.append(row)
     inline_buttons.append([InlineKeyboardButton(text='🏠 Bosh sahifa', callback_data='menu_'),
-                           InlineKeyboardButton(text='⬅️ Orqaga', callback_data=f'month_{month}')])
+                           InlineKeyboardButton(text='⬅️ Orqaga', callback_data=f'year_{year}')])
     inline_kb = InlineKeyboardMarkup(inline_keyboard=inline_buttons)
     return inline_kb
 
@@ -663,9 +696,9 @@ async def settings(language):
 
 async def audio_home(language):
     text = {
-        'uz': ['/audio_home_vt_.(VT) materiallar', 'audio_home_mt_.(MT) materiallar', 'menu_.🏠 Bosh menu'],
-        'ru': ['/audio_home_vt_.(VT) materiallar', 'audio_home_mt_.(MT) materiallar', 'menu_.🏠 Bosh menu'],
-        'en': ['/audio_home_vt_.(VT) materiallar', 'audio_home_mt_.(MT) materiallar', 'menu_.🏠 Bosh menu'],
+        'uz': ['/audio_home_vt_.📹 (VT) materiallar', '/audio_home_mt_.👨‍🏫 (MT) materiallar', 'menu_.🏠 Bosh menu'],
+        'ru': ['/audio_home_vt_.📹 (VT) materiallar', '/audio_home_mt_.👨‍🏫 (MT) materiallar', 'menu_.🏠 Bosh menu'],
+        'en': ['/audio_home_vt_.📹 (VT) materiallar', '/audio_home_mt_.👨‍🏫 (MT) materiallar', 'menu_.🏠 Bosh menu'],
     }
     inline_button = []
     row = []
@@ -687,8 +720,8 @@ async def audio_month(language, data):
     inline_button = []
     row = []
 
-    for i in range(17):
-        row.append(InlineKeyboardButton(text=f'{i:02} Month', callback_data=f'audio_month_{i}_{data}'))
+    for i in range(1,17):
+        row.append(InlineKeyboardButton(text=f'{i} Month', callback_data=f'.audio_month_{i}_{data}'))
         if len(row) == 3:
             inline_button.append(row)
             row = []
@@ -711,7 +744,7 @@ async def audio_month(language, data):
 
 
 async def delete_previous_messages(message, id):
-    sleep(1)
+    sleep(0.5)
     for i in range(2, 50):  # Try up to 10 previous messages
         try:
             await bot.delete_message(chat_id=id, message_id=message - i)
@@ -880,15 +913,15 @@ async def registers(callback_query: CallbackQuery, state: FSMContext):
         case 'uz':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
                                         chat_id=callback_query.from_user.id,
-                                        text='Iltimos Toliq ismingizni yozing\nMisol uchun: Abdulkhaev Xusanboy')
+                                        text='🖋️ Toliq ismingizni yozing\nMisol uchun: Abdulkhaev Xusanboy')
         case 'ru':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
                                         chat_id=callback_query.from_user.id,
-                                        text='Iltimos Toliq ismingizni yozing\nMisol uchun: Abdulkhaev Xusanboy')
+                                        text='🖋️ Toliq ismingizni yozing\nMisol uchun: Abdulkhaev Xusanboy')
         case 'en':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
                                         chat_id=callback_query.from_user.id,
-                                        text='Iltimos Toliq ismingizni yozing\nMisol uchun: Abdulkhaev Xusanboy')
+                                        text='🖋️ Toliq ismingizni yozing\nMisol uchun: Abdulkhaev Xusanboy')
     await state.set_state(Register.fullname)
 
 
@@ -896,9 +929,15 @@ async def registers(callback_query: CallbackQuery, state: FSMContext):
 async def year_callback(message: Message, state: FSMContext):
     language = await get_user_language(tg_id=message.from_user.id)
     a = False
-    for i in message.text.replace(' ', '').replace('  ', ''):
-        if i in str([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]):
-            a = True
+    for i in message.text:
+        if i in str([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]) or len(message.text)<7:
+                a = True
+                break
+    c = message.text.split(' ')
+    if len(c) != 2:
+        a = True
+    else:
+        a = False
     if a:
         await state.set_state(Register.fullname)
         match language:
@@ -916,15 +955,15 @@ async def year_callback(message: Message, state: FSMContext):
     match language:
         case 'uz':
             await bot.send_message(chat_id=message.from_user.id,
-                                   text='Telefon raqamingizni kiriting yoki pastdagi tugmani bosing',
+                                   text='📞 Telefon raqamingizni kiriting yoki pastdagi tugmani bosing',
                                    reply_markup=await share_phone_number(language))
         case 'ru':
             await bot.send_message(chat_id=message.from_user.id,
-                                   text='Введите свой номер телефона или нажмите на кнопку ниже',
+                                   text='📞 Введите свой номер телефона или нажмите на кнопку ниже',
                                    reply_markup=await share_phone_number(language))
         case 'en':
             await bot.send_message(chat_id=message.from_user.id,
-                                   text='Please enter your phone number or click the button below',
+                                   text='📞 Please enter your phone number or click the button below',
                                    reply_markup=await share_phone_number(language))
     await state.set_state(Register.number)
     await delete_previous_messages(message.message_id, message.from_user.id)
@@ -934,7 +973,7 @@ async def year_callback(message: Message, state: FSMContext):
 async def number(message: Message, state: FSMContext):
     language = await get_user_language(message.from_user.id)
     if message.text:
-        if not message.text.isdigit():
+        if not message.text[1:].isdigit() or 9<=len(str(message.text))>=13 :
             await state.set_state(Register.number)
             match language:
                 case 'uz':
@@ -950,7 +989,10 @@ async def number(message: Message, state: FSMContext):
                                            text='Iltimos telfon raqamingizni 998 90 123 45 67 korinishida yoki 901234567 korinishida yuboring  \nHarf va maxsus belgilardan foydalanmang',
                                            reply_markup=await share_phone_number(language))
             return
-        await state.update_data(number=message.text)
+        if message.text[0]=='+':
+            await state.update_data(number=message.text)
+        else:
+            await state.update_data(number=f'+{message.text}')
     if message.contact:
         await state.update_data(number=message.contact.phone_number)
     match language:
@@ -994,18 +1036,18 @@ async def year_callback(message: Message, state: FSMContext):
     language = await get_user_language(tg_id=message.from_user.id)
     if not message.text.isdigit():
         match language:
-            case 'uz':
-                await bot.send_message(chat_id=message.from_user.id,
+                case 'uz':
+                    await bot.send_message(chat_id=message.from_user.id,
                                        text='Iltimos tugilgan yilingiz kiriting o\'yin qilman')
-            case 'ru':
-                await bot.send_message(chat_id=message.from_user.id,
+                case 'ru':
+                    await bot.send_message(chat_id=message.from_user.id,
                                        text='Iltimos tugilgan yilingiz kiriting o\'yin qilman')
-            case 'en':
-                await bot.send_message(chat_id=message.from_user.id,
+                case 'en':
+                    await bot.send_message(chat_id=message.from_user.id,
                                        text='Iltimos tugilgan yilingiz kiriting o\'yin qilman')
         return
     if message.text.isdigit():
-        if len(message.text) != 4 or current_year - 60 > int(message.text) > current_year - 5:
+        if len(message.text) != 4 or not current_year-60+5<int(message.text)<current_year-5:
             await state.set_state(Register.year)
             match language:
                 case 'uz':
@@ -1017,9 +1059,9 @@ async def year_callback(message: Message, state: FSMContext):
                 case 'ru':
                     await message.answer(
                         text='Iltimos ozingizning yoki kursga qatnashmoqchi bolgan insonning tugilgan yilini kiriting📅\nMisol uchun: 2008')
+            await state.set_state(Register.year)
             return
-    await state.set_state(Register.year)
-    await state.update_data(year=int(message.text))
+    await state.update_data(year=message.text)
     match language:
         case 'ru':
             await bot.send_message(text='ru', chat_id=message.from_user.id, reply_markup=await month(language, gender))
@@ -1033,44 +1075,25 @@ async def year_callback(message: Message, state: FSMContext):
 
 
 @dp.callback_query(F.data.startswith('year_'))
-async def year_callback(state: FSMContext, message: Message):
-    language = await get_user_language(tg_id=message.from_user.id)
-    if not message.text.isdigit():
-        await state.set_state(Register.start)
-        match language:
-            case 'ru':
-                await bot.send_message(text='ru', chat_id=message.from_user.id)
-            case 'en':
-                await bot.send_message(text='en', chat_id=message.from_user.id)
-            case 'uz':
-                await bot.send_message(text='Iltmos tugilgan yilingizni kiriting\nMisol uchun: 2008',
-                                       chat_id=message.from_user.id)
-        return
-    if message.text.isdigit():
-        if len(message.text) != 4 or int(message.text) + 4 >= current_year and int(message.text) <= current_year - 60:
-            await state.set_state(Register.year)
-            match language:
-                case 'uz':
-                    await message.answer(
-                        text='Iltimos ozingizning yoki kursga qatnashmoqchi bolgan insonning tugilgan yilini kiriting📅\nMisol uchun: 2008')
-                case 'ru':
-                    await message.answer(
-                        text='Iltimos ozingizning yoki kursga qatnashmoqchi bolgan insonning tugilgan yilini kiriting📅\nMisol uchun: 2008')
-                case 'ru':
-                    await message.answer(
-                        text='Iltimos ozingizning yoki kursga qatnashmoqchi bolgan insonning tugilgan yilini kiriting📅\nMisol uchun: 2008')
-    await state.update_data(year=int(message.text))
+async def sssss(callback_query: CallbackQuery,state: FSMContext):
+    language = await get_user_language(tg_id=callback_query.from_user.id)
+    await state.update_data(year=callback_query.data.split('_')[1])
+    data = await state.get_data()
+    gender1 =data.get('gender')
+    fake = data.get('fake_gender')
+    gender = f'{gender1}_{fake}'
     match language:
-        case 'ru':
-            await bot.edit_message_text(message_id=message.message.message_id - 1, text='ru',
-                                        chat_id=message.from_user.id, reply_markup=await month(language, gender))
-        case 'en':
-            await bot.edit_message_text(message_id=message.message.message_id - 1, text='en',
-                                        chat_id=message.from_user.id, reply_markup=await month(language, gender))
         case 'uz':
-            await bot.edit_message_text(message_id=message.message.message_id - 1, text='Tugilgan oyingizni tanlang',
-                                        chat_id=message.from_user.id, reply_markup=await month(language, gender))
-    await delete_previous_messages(id=message.from_user.id, message=message.message_id)
+            await bot.send_message(text='Tugilgan oyingizni tanlang',
+                                        chat_id=callback_query.from_user.id, reply_markup=await month(language, gender))
+        case 'ru':
+            await bot.send_message(text='Tugilgan oyingizni tanlang',
+                                        chat_id=callback_query.from_user.id, reply_markup=await month(language, gender))
+        case 'en':
+            await bot.send_message(text='Tugilgan oyingizni tanlang',
+                                        chat_id=callback_query.from_user.id, reply_markup=await month(language, gender))
+    await bot.delete_message(message_id=callback_query.message.message_id,chat_id=callback_query.from_user.id)
+    await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
 
 
 @dp.callback_query(F.data.startswith('month_'))
@@ -1080,7 +1103,6 @@ async def month_callback(callback_query: CallbackQuery, state: FSMContext):
     month_name = callback_query.data.split('_')[2][2:]
     await state.update_data(month=month_name)
     years = await state.get_data()
-    gender = years.get('gender')
     year = years.get('year')
     match language:
         case 'uz':
@@ -1160,10 +1182,10 @@ async def level(callback_query: CallbackQuery, state: FSMContext):
             await bot.edit_message_text(message_id=callback_query.message.message_id,
                                         text=f'{data} uchun berilgan vaqtni tanlang',
                                         chat_id=callback_query.from_user.id, reply_markup=await time_en(language, day))
-    await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message_id)
+    await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
 
 
-@dp.callback_query(F.data.startswith('level_more'))
+@dp.callback_query(F.data.startswith('more_level'))
 async def level(callback_query: CallbackQuery, state: FSMContext):
     data = callback_query.data.split('_')[1]
     await state.update_data(level=data)
@@ -1626,39 +1648,43 @@ async def audio_monthl(callback_query: CallbackQuery):
     data = callback_query.data.split('_')[2]
     language = await get_user_language(callback_query.from_user.id)
     text = {
-        'uz': 'Oyingizni tanlang',
-        'ru': 'Oyingizni tanlang',
-        'en': 'Oyingizni tanlang',
+        'uz': f'{data.upper()} oyingizni tanlang',
+        'ru': f'{data.upper()} oyingizni tanlang',
+        'en': f'{data.upper()} oyingizni tanlang',
     }
-    await bot.send_message(chat_id=callback_query.from_user.id, text=text.get(language),
+    await bot.edit_message_text(message_id=callback_query.message.message_id,chat_id=callback_query.from_user.id, text=text.get(language),
                            reply_markup=await audio_month(language, data))
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
-@dp.callback_query(F.data.startswith('audio_month_'))
+@dp.callback_query(F.data.startswith('.audio_month_'))
 async def audio_month_level(callback_query: CallbackQuery):
     language = await get_user_language(callback_query.from_user.id)
     month = callback_query.data.split('_')[2]
     data = callback_query.data.split('_')[3]
+    folder_path = f'./audio/{data}/{month}'
 
-    audio_folder = f'./audio/{data}/{month}'
+    mp3_files = []
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file.endswith('.mp3'):
+                mp3_files.append(os.path.join(root, file))
+    text={
+        'uz':'Bosh sahifa',
+        'ru':'Bosh sahifa',
+        'en':'Bosh sahifa',
+    }
+    # Sending each mp3 file to the user
+    for file_path in mp3_files:
+        audios = FSInputFile(file_path)
+        await bot.send_chat_action(chat_id=callback_query.from_user.id,action='upload_audio')
+        await bot.send_audio(chat_id=callback_query.from_user.id, audio=audios)
+        await bot.send_message(chat_id=callback_query.from_user.id,text=text.get(language),reply_markup=await home(language))
+        try:
+            await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
+            await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+        except TelegramBadRequest:
+            pass
 
-    # Ensure the folder exists
-    if not os.path.exists(audio_folder):
-        await bot.send_message(callback_query.from_user.id, "No audio files available for this month.")
-        return
-
-    # Send audio files
-    for filename in os.listdir(audio_folder):
-        if filename.endswith('.mp3'):
-            file_path = os.path.join(audio_folder, filename)
-            try:
-                await bot.send_audio(callback_query.from_user.id, FSInputFile(file_path))
-            except Exception as e:
-                print(f"Failed to send {filename}: {e}")
-                await bot.send_message(callback_query.from_user.id, f"Failed to send {filename}: {e}")
-
-    # Optionally, you can call the message deletion function here as well
-    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 # ------------------------------------  Certificates -------------------------------------------------------------------#
 
 @dp.callback_query(F.data.startswith("results"))
