@@ -1,0 +1,7 @@
+class Hire(StatesGroup):
+   name = State()
+    year = State()
+    state = State()
+    experience = State()
+    is_certificate = State()
+    !image_certificate = State()

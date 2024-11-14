@@ -10,7 +10,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, TelegramObject, Update, \
-    ReplyKeyboardMarkup, KeyboardButton, FSInputFile
+    ReplyKeyboardMarkup, KeyboardButton, FSInputFile, ReplyKeyboardRemove
 from sqlalchemy import Column, Integer, String, DateTime, func, select, ForeignKey, Boolean
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase
@@ -171,6 +171,22 @@ class Register(StatesGroup):
     fake_gender = State()
 
 
+class Hire(StatesGroup):
+    start = State()
+    name = State()
+    year = State()
+    state = State()
+    state_fake = State()
+    experience = State()
+    is_certificate = State()
+    image_certificate = State()
+
+
+class Audio(StatesGroup):
+    audio_home = State()
+    audio_level = State()
+
+
 class Register_full(StatesGroup):
     start = State()
     fullname = State()
@@ -200,13 +216,20 @@ async def languages():
     lan = ['uz🇺🇿 O\'zbek tili 🇺🇿', 'ru🇷🇺 Russian 🇷🇺', 'en🇺🇸 English 🇺🇸']
     inline_button = []
     row = []
+
+    # Loop through the language list to create buttons
     for i in lan:
+        # Add button text (exclude the flag) and callback data (first 2 chars of the language code)
         row.append(InlineKeyboardButton(text=f'{i[2:]}', callback_data=f"lan_{i[:2]}"))
-        if len(row) == 3:
+        if len(row) == 3:  # Add up to 3 buttons in one row
             inline_button.append(row)
             row = []
+
+    # Add any remaining buttons
     if row:
         inline_button.append(row)
+
+    # Create inline keyboard markup
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
@@ -218,13 +241,13 @@ async def scores(language, category, before, band):
     # Setting text based on the language
     if language == 'en':
         text1 = '🚫 Cancel'
-        text2 = '⬅️ Back'
+        text2 = '🔙 Back'
     elif language == 'uz':
         text1 = '🚫 Bekor qilish'
-        text2 = '⬅️ Orqaga'
-    else:
-        text1 = '🚫 Bekor qilish'
-        text2 = '⬅️ Orqaga'
+        text2 = '🔙 Orqaga'
+    else:  # Assuming Russian for other cases
+        text1 = '🚫 Отмена'  # Russian translation for 'Cancel'
+        text2 = '🔙 Назад'  # Russian translation for 'Back'
 
     # If the category is 'photo'
     if category == 'photo':
@@ -268,7 +291,7 @@ async def gender(language, is_state):
         case 'uz':
             menu = ['gender_man.🤵 Erkak kishi', 'gender_women.👩 Ayol kishi']
         case 'ru':
-            menu = ['gender_man.🤵 Erkak kishi', 'gender_women.👩 Ayol kishi']
+            menu = ['gender_man.🤵 Мужчина', 'gender_women.👩 Женщина']  # Russian translation for 'Man' and 'Woman'
         case 'en':
             menu = ['gender_man.🤵 Man', 'gender_women.👩 Woman']
         case _:
@@ -276,69 +299,76 @@ async def gender(language, is_state):
 
     inline_button = []
     row = []
+
     for i in menu:
-        if is_state == True:
+        # Check if the state is True to modify callback data
+        if is_state:
             row.append(InlineKeyboardButton(text=f"{i.split('_')[1].split('.')[1]}",
                                             callback_data=f"state.{i.split('_')[0]}_{i.split('_')[1]}"))
         else:
             row.append(InlineKeyboardButton(text=f"{i.split('_')[1].split('.')[1]}", callback_data=f"{i}"))
-        if len(row) == 2:  # Corrected here
+
+        # Add to inline buttons when there are 2 buttons in the row
+        if len(row) == 2:
             inline_button.append(row)
             row = []
-    inline_button.append([InlineKeyboardButton(text='🏠 Bosh menu', callback_data=f"menu_")])
+
+    # Add "Home" and "Back" buttons
+    inline_button.append([InlineKeyboardButton(text='🏠 Bosh menu', callback_data="menu_"),
+                          InlineKeyboardButton(text='🔙 Ortga', callback_data="Register_number_")])
+
+    # Append remaining row if exists
     if row:
         inline_button.append(row)
 
+    # Create InlineKeyboardMarkup
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+
+
+async def month_audio():
+    inline_button = []
+    row = []
+    text = ['?audio_Kids.🧸 Kids', '?audio_Intermediate.🕰️ Intermediate', '?audio_Adult.🧑‍🎓 Adult',
+            '?audio_IELTS.🏆 IELTS', 'menu_.🏠 Bosh sahifa']
+    for i in range(len(text)):
+        row.append(InlineKeyboardButton(text=text[i].split('.')[1], callback_data=f"{text[i].split('.')[0]}"))
+        if len(row) == 4:
+            inline_button.append(row)
+            row = []
+    if row:
+        inline_button.append(row)
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
 
 async def home(language):
     if language == 'uz':
-        menu = ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'audio_.🔊 Audio materiallar', 'complain_.📌 '
-                                                                                                    'Shikoyat qilish ',
-                'settings.⚙️ Sozlamalar']
-        inline_button = []
-        row = []
-        for i in menu:
-            row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f"{i.split('.')[0]}"))
-            if len(row) == 3:
-                inline_button.append(row)
-                row = []
-        if row:
+        menu = ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'audio_.🔊 Audio materiallar',
+                'complain_.📌 Shikoyat qilish', 'hire_.👨‍💼 Xodimlar']
+    elif language == 'en':
+        menu = ['courses_.✍️ Enroll in course', 'results.🏆 Results', 'audio_.🔊 Audio materials',
+                'complain_.📌 File a complaint', 'hire_.👨‍💼 Employees']
+    elif language == 'ru':
+        menu = ['courses_.✍️ Записаться на курс', 'results.🏆 Результаты', 'audio_.🔊 Аудиоматериалы',
+                'complain_.📌 Пожаловаться', 'hire_.👨‍💼 Сотрудники']
+    else:
+        # Default language (for example, you could use 'en')
+        menu = ['courses_.✍️ Enroll in course', 'results.🏆 Results', 'audio_.🔊 Audio materials',
+                'complain_.📌 File a complaint', 'hire_.👨‍💼 Employees']
+
+    inline_button = []
+    row = []
+    for i in menu:
+        row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f"{i.split('.')[0]}"))
+        if len(row) == 3:
             inline_button.append(row)
-        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
-        return inline_keyboard
-    if language == 'en':
-        menu = ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'audio_.🔊 Audio materiallar', 'complain_.📌 '
-                                                                                                    'Shikoyat qilish ',
-                'settings.⚙️ Sozlamalar']
-        inline_button = []
-        row = []
-        for i in menu:
-            row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f"{i.split('.')[0]}"))
-            if len(row) == 3:
-                inline_button.append(row)
-                row = []
-        if row:
-            inline_button.append(row)
-        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
-        return inline_keyboard
-    if language == 'ru':
-        menu = ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'audio_.🔊 Audio materiallar', 'complain_.📌 '
-                                                                                                    'Shikoyat qilish ',
-                'settings.⚙️ Sozlamalar']
-        inline_button = []
-        row = []
-        for i in menu:
-            row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f"{i.split('.')[0]}"))
-            if len(row) == 3:
-                inline_button.append(row)
-                row = []
-        if row:
-            inline_button.append(row)
-        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
-        return inline_keyboard
+            row = []
+    if row:
+        inline_button.append(row)
+
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
 
 
 async def result_home(language):
@@ -347,9 +377,11 @@ async def result_home(language):
             menu = ['result_English.🇺🇸 Ingilis tilidan natijalar', 'result_IT.💻 IT dan natijalar',
                     'menu_.🏠 Bosh sahifaga qaytish']
         case 'ru':
-            menu = ['result_English.🇺🇸 Ingilis tilidan natijalar', 'result_IT.💻 IT dan natijalar']
+            menu = ['result_English.🇺🇸 Результаты по английскому', 'result_IT.💻 Результаты по IT',
+                    'menu_.🏠 Вернуться на главную']
         case _:
-            menu = ['result_English.🇺🇸 Ingilis tilidan natijalar', 'result_IT.💻 IT dan natijalar']
+            menu = ['result_English.🇺🇸 Results in English', 'result_IT.💻 IT Results', 'menu_.🏠 Return to home']
+
     inline_button = []
     row = []
     for i in menu:
@@ -359,6 +391,7 @@ async def result_home(language):
             row = []
     if row:
         inline_button.append(row)
+
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
@@ -381,12 +414,12 @@ async def tuition(language):
             inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
             return inline_keyboard
         case 'ru':
-            menu = ['englis tili_🇺🇸 Ingilis tili', 'IT_💻 IT', 'Matematika_✒️ Matematika', 'Tarix_🔶 Tarix',
-                    'Arab tili_🔶 Arab tili']
+            menu = ['English_🇺🇸 Английский язык', 'IT_💻 ИТ', 'Matematika_✒️ Математика', 'Tarix_🔶 История',
+                    'Arab tili_🔶 Арабский язык']
             inline_button = []
             row = []
             for i in menu:
-                row.append(InlineKeyboardButton(text=f'{i.split("-")[1]}', callback_data=f"register_{i.split('_')[0]}"))
+                row.append(InlineKeyboardButton(text=f'{i.split("_")[1]}', callback_data=f"register_{i.split('_')[0]}"))
                 if len(row) == 3:
                     inline_button.append(row)
                     row = []
@@ -395,12 +428,12 @@ async def tuition(language):
             inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
             return inline_keyboard
         case 'en':
-            menu = ['englis tili_🇺🇸 Ingilis tili', 'IT_💻 IT', 'Matematika_✒️ Matematika', 'Tarix_🔶 Tarix',
-                    'Arab tili_🔶 Arab tili']
+            menu = ['English_🇺🇸 English Language', 'IT_💻 IT', 'Matematika_✒️ Mathematics', 'Tarix_🔶 History',
+                    'Arab tili_🔶 Arabic Language']
             inline_button = []
             row = []
             for i in menu:
-                row.append(InlineKeyboardButton(text=f'{i.split("-")[1]}', callback_data=f"register_{i.split('_')[0]}"))
+                row.append(InlineKeyboardButton(text=f'{i.split("_")[1]}', callback_data=f"register_{i.split('_')[0]}"))
                 if len(row) == 3:
                     inline_button.append(row)
                     row = []
@@ -411,72 +444,91 @@ async def tuition(language):
 
 
 async def month(language, gender):
-    # Month dictionary with custom names
+    # Month dictionary with custom names for each language
+    match language:
+        case 'uz':
+            months = {12: '12🎄 Dekabr',  # December
+                      1: '01❄️ Yanvar',  # January
+                      2: '02🌸 Fevral',  # February
+                      3: '03🌷 Mart',  # March
+                      4: '04🌱 Aprel',  # April
+                      5: '05🌞 May',  # May
+                      6: '06☀️ Iyun',  # June
+                      7: '07🌞 Iyun',  # July
+                      8: '08🌅 Avgust',  # August
+                      9: '09🎒 Sentabr',  # September
+                      10: '10🍂 Oktabr',  # October
+                      11: '11🌧️ Noyabr'  # November
+                      }
+        case 'ru':
+            months = {12: '12🎄 Декабрь',  # December
+                      1: '01❄️ Январь',  # January
+                      2: '02🌸 Февраль',  # February
+                      3: '03🌷 Март',  # March
+                      4: '04🌱 Апрель',  # April
+                      5: '05🌞 Май',  # May
+                      6: '06☀️ Июнь',  # June
+                      7: '07🌞 Июль',  # July
+                      8: '08🌅 Август',  # August
+                      9: '09🎒 Сентябрь',  # September
+                      10: '10🍂 Октябрь',  # October
+                      11: '11🌧️ Ноябрь'  # November
+                      }
+        case 'en':
+            months = {12: '12🎄 December',  # December
+                      1: '01❄️ January',  # January
+                      2: '02🌸 February',  # February
+                      3: '03🌷 March',  # March
+                      4: '04🌱 April',  # April
+                      5: '05🌞 May',  # May
+                      6: '06☀️ June',  # June
+                      7: '07🌞 July',  # July
+                      8: '08🌅 August',  # August
+                      9: '09🎒 September',  # September
+                      10: '10🍂 October',  # October
+                      11: '11🌧️ November'  # November
+                      }
+        case _:
+            # Default to Uzbek if language is unknown
+            months = {12: '12🎄 Dekabr',  # December
+                      1: '01❄️ Yanvar',  # January
+                      2: '02🌸 Fevral',  # February
+                      3: '03🌷 Mart',  # March
+                      4: '04🌱 Aprel',  # April
+                      5: '05🌞 May',  # May
+                      6: '06☀️ Iyun',  # June
+                      7: '07🌞 Iyun',  # July
+                      8: '08🌅 Avgust',  # August
+                      9: '09🎒 Sentabr',  # September
+                      10: '10🍂 Oktabr',  # October
+                      11: '11🌧️ Noyabr'  # November
+                      }
+
     inline_buttons = []
     row = []
-    match language:
-        case 'uz':
-            months = {
-                12: '12🎄 Dekabr',  # December (Christmas tree)
-                1: '01❄️ Yanvar',  # January (snowflake)
-                2: '02🌸 Fevral',  # February (flower)
-                3: '03🌷 Mart',  # March (spring flowers)
-                4: '04🌱 Aprel',  # April (growth, spring)
-                5: '05🌞 May',  # May (sun, summer approach)
-                6: '06☀️ Iyun',  # June (hot weather)
-                7: '07🌞 Iyun',  # July (summer)
-                8: '08🌅 Avgust',  # August (sunrise, end of summer)
-                9: '09🎒 Sentabr',  # September (back to school)
-                10: '10🍂 Oktabr',  # October (fall leaves)
-                11: '11🌧️ Noyabr'  # November (rain)
-            }
-        case 'ru':
-            months = {
-                12: '12🎄 Dekabr',  # December (Christmas tree)
-                1: '01❄️ Yanvar',  # January (snowflake)
-                2: '02🌸 Fevral',  # February (flower)
-                3: '03🌷 Mart',  # March (spring flowers)
-                4: '04🌱 Aprel',  # April (growth, spring)
-                5: '05🌞 May',  # May (sun, summer approach)
-                6: '06☀️ Iyun',  # June (hot weather)
-                7: '07🌞 Iyun',  # July (summer)
-                8: '08🌅 Avgust',  # August (sunrise, end of summer)
-                9: '09🎒 Sentabr',  # September (back to school)
-                10: '10🍂 Oktabr',  # October (fall leaves)
-                11: '11🌧️ Noyabr'  # November (rain)
-            }
-        case _:
-            months = {
-                12: '12🎄 Dekabr',  # December (Christmas tree)
-                1: '01❄️ Yanvar',  # January (snowflake)
-                2: '02🌸 Fevral',  # February (flower)
-                3: '03🌷 Mart',  # March (spring flowers)
-                4: '04🌱 Aprel',  # April (growth, spring)
-                5: '05🌞 May',  # May (sun, summer approach)
-                6: '06☀️ Iyun',  # June (hot weather)
-                7: '07🌞 Iyun',  # July (summer)
-                8: '08🌅 Avgust',  # August (sunrise, end of summer)
-                9: '09🎒 Sentabr',  # September (back to school)
-                10: '10🍂 Oktabr',  # October (fall leaves)
-                11: '11🌧️ Noyabr'  # November (rain)
-            }
 
+    # Button creation for each month
     for num, label in months.items():
-        row.append(InlineKeyboardButton(text=label[2:], callback_data=f'month_{label[:2]}_{label}'))
-        if len(row) == 3:  # Limit to 2 buttons per row
+        row.append(InlineKeyboardButton(text=label[2:],
+                                        callback_data=f'month_{label[:2]}_{label}'))  # Removing the number part
+        if len(row) == 3:  # Limit to 3 buttons per row
             inline_buttons.append(row)
             row = []
-    match language:
-        case 'en':
-            row.append(InlineKeyboardButton(text="🏠 Home", callback_data='menu_'))
-            row.append(InlineKeyboardButton(text="⬅️ Back", callback_data=f'gender_.{gender}'))
-        case 'ru':
-            row.append(InlineKeyboardButton(text="🏠 Home", callback_data='menu'))
-            row.append(InlineKeyboardButton(text="⬅️ Back", callback_data=f'gender_.{gender}'))
-        case 'uz':
-            row.append(InlineKeyboardButton(text="🏠 Bosh menu", callback_data='menu_'))
-            row.append(InlineKeyboardButton(text="⬅️ Ortga", callback_data=f'gender_.{gender}'))
     if row:  # Add any remaining buttons to the last row
+        inline_buttons.append(row)
+
+    # Language-specific footer buttons
+    if language == 'en':
+        row.append(InlineKeyboardButton(text="🏠 Home", callback_data='menu_'))
+        row.append(InlineKeyboardButton(text="🔙 Back", callback_data=f'gender_.{gender}'))
+    elif language == 'ru':
+        row.append(InlineKeyboardButton(text="🏠 Home", callback_data='menu'))
+        row.append(InlineKeyboardButton(text="🔙 Back", callback_data=f'gender_.{gender}'))
+    elif language == 'uz':
+        row.append(InlineKeyboardButton(text="🏠 Bosh menu", callback_data='menu_'))
+        row.append(InlineKeyboardButton(text="🔙 Ortga", callback_data=f'gender_.{gender}'))
+
+    if row:  # Add any remaining footer buttons
         inline_buttons.append(row)
 
     # Create an inline keyboard with the buttons
@@ -504,7 +556,7 @@ async def days(month, year):
     if row:  # Add any remaining buttons to the last row
         inline_buttons.append(row)
     inline_buttons.append([InlineKeyboardButton(text='🏠 Bosh sahifa', callback_data='menu_'),
-                           InlineKeyboardButton(text='⬅️ Orqaga', callback_data=f'year_{year}')])
+                           InlineKeyboardButton(text='🔙 Orqaga', callback_data=f'year_{year}')])
     inline_kb = InlineKeyboardMarkup(inline_keyboard=inline_buttons)
     return inline_kb
 
@@ -514,20 +566,29 @@ async def share_phone_number(language):
     match language:
         case 'en':
             button_text = "📱 Share phone number"
+            back_text = "🔙 Back"
         case 'uz':
             button_text = "📱 Telefon raqamni yuborish"
+            back_text = "🔙 Ortga"
         case 'ru':
             button_text = "📱 Поделиться номером телефона"
+            back_text = "🔙 Назад"
         case _:
             button_text = "📞 Share number"
+            back_text = "🔙 Back"
 
-    # Create the button with the appropriate text
+    # Create the share phone number button
     share_phone_button = KeyboardButton(text=button_text, request_contact=True)
 
-    # Define the keyboard layout with the button directly
-    keyboard = ReplyKeyboardMarkup(keyboard=[[share_phone_button]],  # List of rows, each row as a list of buttons
+    # Create the back button
+    back_button = KeyboardButton(text=back_text)
+
+    # Define the keyboard layout with the share phone number button and back button
+    keyboard = ReplyKeyboardMarkup(keyboard=[[share_phone_button], [back_button]],
+                                   # Two rows: one with share phone button, one with back button
                                    resize_keyboard=True, one_time_keyboard=True, selective=True,
                                    input_field_placeholder="Enter your phone number")
+
     return keyboard
 
 
@@ -536,7 +597,7 @@ async def create_inline_keyboard(menu, max_buttons_per_row=2):
     row = []
     for item in menu:
         row.append(
-            InlineKeyboardButton(text=item.split(".")[1], callback_data=f'level_{item.split(".")[0]}'# Changed to level_
+            InlineKeyboardButton(text=item.split(".")[1], callback_data=f'{item.split(".")[0]}.'  # Changed to level_
                                  ))
         if len(row) == max_buttons_per_row:
             inline_button.append(row)
@@ -550,89 +611,94 @@ async def create_inline_keyboard(menu, max_buttons_per_row=2):
 async def tuition_en(language, year):
     current_year = datetime.now().year
     age = int(current_year) - int(year)
+
+    # Define the button texts based on the selected language
     match language:
         case 'uz':
-            if age <= 12:
-                menu = ['kids.⭐️ Kids', 'more.⚙️ Boshqa oyni tanlash']
-                return await create_inline_keyboard(menu, max_buttons_per_row=2)
-            elif age <= 14:
-                menu = ['kids.⭐️ Kids', 'intermittent.⭐️ Intermittent', 'more.⚙️ Boshqa oyni tanlash']
-                return await create_inline_keyboard(menu, max_buttons_per_row=3)
-            elif age >= 16:
-                menu = ['kids.⭐️ Kids', 'Intermittent.⭐️ Intermittent', 'adult.⭐️ Adult', 'ielt.⭐️ IELTS']
-                return await create_inline_keyboard(menu, max_buttons_per_row=4)
+            more_button = 'more.⚙️ Boshqa oyni tanlash'
+            level_kids = 'level_kids.⭐️ Kids'
+            level_intermittent = 'level_intermittent.⭐️ Intermittent'
+            level_adult = 'level_adult.⭐️ Adult'
+            level_ielt = 'level_ielt.⭐️ IELTS'
         case 'ru':
-            if age <= 12:
-                menu = ['kids.⭐️ Kids', 'more.⚙️ Boshqa oyni tanlash']
-                return await create_inline_keyboard(menu, max_buttons_per_row=2)
-            elif age <= 14:
-                menu = ['kids.⭐️ Kids', 'intermittent.⭐️ Intermittent', 'more.⚙️ Boshqa oyni tanlash']
-                return await create_inline_keyboard(menu, max_buttons_per_row=3)
-            elif age >= 16:
-                menu = ['kids.⭐️ Kids', 'intermittent.⭐️ Intermittent', 'adult.⭐️ Adult', 'ielt.⭐️ IELTS']
-                return await create_inline_keyboard(menu, max_buttons_per_row=4)
+            more_button = 'more.⚙️ Больше месяцев'
+            level_kids = 'level_kids.⭐️ Дети'
+            level_intermittent = 'level_intermittent.⭐️ Промежуточный'
+            level_adult = 'level_adult.⭐️ Взрослый'
+            level_ielt = 'level_ielt.⭐️ IELTS'
         case 'en':
-            if age <= 12:
-                menu = ['kids.⭐️ Kids', 'more.⚙️ Boshqa oyni tanlash']
-                return await create_inline_keyboard(menu, max_buttons_per_row=2)
-            elif age <= 14:
-                menu = ['kids.⭐️ Kids', 'intermittent.⭐️ Intermittent', 'more.⚙️ Boshqa oyni tanlash']
-                return await create_inline_keyboard(menu, max_buttons_per_row=3)
-            elif age >= 16:
-                menu = ['kids.⭐️ Kids', 'intermittent.⭐️ Intermittent', 'adult.⭐️ Adult', 'ielt.⭐️ IELTS']
-                return await create_inline_keyboard(menu, max_buttons_per_row=4)
+            more_button = 'more.⚙️ Choose another month'
+            level_kids = 'level_kids.⭐️ Kids'
+            level_intermittent = 'level_intermittent.⭐️ Intermittent'
+            level_adult = 'level_adult.⭐️ Adult'
+            level_ielt = 'level_ielt.⭐️ IELTS'
+        case _:
+            return None  # For unsupported languages, return None
+
+    # Build the menu based on the age
+    if age <= 12:
+        menu = [level_kids, more_button]
+        return await create_inline_keyboard(menu, max_buttons_per_row=2)
+    elif age <= 14:
+        menu = [level_kids, level_intermittent, more_button]
+        return await create_inline_keyboard(menu, max_buttons_per_row=3)
+    elif age >= 16:
+        menu = [level_kids, level_intermittent, level_adult, level_ielt]
+        return await create_inline_keyboard(menu, max_buttons_per_row=4)
 
     return None
 
 
-async def level_more(language):
-    if language == 'uz':
-        menu = ['level_kids.⭐️ Kids', 'level_intermittent.⭐️ Intermittent', 'level_adult.⭐️ Adult',
-                'level_ielt.⭐️ IELTS', 'menu_.🏠 Bosh menuga qaytish', 'menu_.🚫 Bekor qilish']
-    if language == 'ru':
-        menu = ['level_kids.⭐️ Kids', 'level_intermittent.⭐️ Intermittent', 'level_adult.⭐️ Adult',
-                'level_ielt.⭐️ IELTS', 'menu_.🏠 Bosh menuga qaytish', 'menu_.🚫 Bekor qilish']
-    if language == 'en':
-        menu = ['level_kids.⭐️ Kids', 'level_intermittent.⭐️ Intermittent', 'level_adult.⭐️ Adult',
-                'level_ielt.⭐️ IELTS', 'menu_.🏠 Bosh menuga qaytish', 'menu_.🚫 Bekor qilish']
-    else:
-        menu = ['level_kids.⭐️ Kids', 'level_intermittent.⭐️ Intermittent', 'level_adult.⭐️ Adult',
-                'level_ielt.⭐️ IELTS', 'menu_.🏠 Bosh menuga qaytish', 'menu_.🚫 Bekor qilish']
+async def level_more(language, day):
+    text = {'uz': ['level_kids.⭐️ Kids', 'level_intermittent.⭐️ Intermittent', 'level_adult.⭐️ Adult',
+                   'level_ielt.⭐️ IELTS', 'menu_.🏠 Bosh menuga qaytish', f'month_{day}.🔙 Ortga'],
+            'ru': ['level_kids.⭐️ Kids', 'level_intermittent.⭐️ Intermittent', 'level_adult.⭐️ Adult',
+                   'level_ielt.⭐️ IELTS', 'menu_.🏠 Bosh menuga qaytish', f'month_{day}.🔙 Ortga'],
+            'en': ['level_kids.⭐️ Kids', 'level_intermittent.⭐️ Intermittent', 'level_adult.⭐️ Adult',
+                   'level_ielt.⭐️ IELTS', 'menu_.🏠 Bosh menuga qaytish', f'month_{day}.🔙 Ortga'], }
 
     inline_button = []
     row = []
-    for i in menu:
-        row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}'))
-        if len(row) == 3:
+
+    # Build buttons for each text item based on the language
+    for item in text.get(language):
+        button_text = item.split('.')[1]  # Get text after the period (button label)
+        callback_data = item.split('.')[0]  # Get text before the period (callback data)
+
+        row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
+
+        # Add buttons to the row and limit the number of buttons per row
+        if len(row) == 2:  # Adjust the number of buttons per row if needed
             inline_button.append(row)
+            row = []
+
+    # If there are leftover buttons in the row, add them to the inline_keyboard
     if row:
         inline_button.append(row)
-    inline_button = InlineKeyboardMarkup(inline_keyboard=inline_button)
-    return inline_button
+
+    # Return the inline keyboard markup
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
 
 
 async def confirmt(language, is_state):
-    if language == 'uz':
-        menu = ['confirm_.✅ Tastiqlash', 'register_.🔄 Qaytatan ishlash ', 'menu_.🚫 Bekore qilish']
-    elif language == 'ru':
-        menu = ['confirm_.✅ Tastiqlash', 'register_.🔄 Qaytatan ishlash ', 'menu_.🚫 Bekore qilish']
-    elif language == 'en':
-        menu = ['confirm_.✅ Tastiqlash', 'register_.🔄 Qaytatan ishlash ', 'menu_.🚫 Bekore qilish']
-    else:
-        menu = ['confirm_.✅ Tastiqlash', 'register_.🔄 Qaytatan ishlash ', 'menu_.🚫 Bekore qilish']
+    # Define the menu text for all languages
+    menu = {'uz': ['confirm_.✅ Tastiqlash', 'register_.🔄 Qaytatan ishlash', 'menu_.🚫 Bekore qilish'],
+            'ru': ['confirm_.✅ Tastiqlash', 'register_.🔄 Qaytatan ishlash', 'menu_.🚫 Bekore qilish'],
+            'en': ['confirm_.✅ Tastiqlash', 'register_.🔄 Qaytatan ishlash', 'menu_.🚫 Bekore qilish'], }
+
+    # Default to 'en' language if no match
+    menu = menu.get(language, menu['en'])
 
     inline_buttons = []
     row = []
 
+    # Loop through the menu items and create buttons
     for i in menu:
-        if is_state == True:
-            button_text = i.split(".")[1]
-            callback_data = f'state_{i.split(".")[0]}'
-            row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
-        else:
-            button_text = i.split(".")[1]
-            callback_data = i.split('.')[0]
-            row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
+        button_text = i.split(".")[1]  # Extract text after the period
+        callback_data = f'state_{i.split(".")[0]}' if is_state else i.split('.')[0]  # Set callback data based on state
+
+        row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
 
         # Append row to buttons every 2 items
         if len(row) == 2:
@@ -643,6 +709,7 @@ async def confirmt(language, is_state):
     if row:
         inline_buttons.append(row)
 
+    # Return the inline keyboard markup
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_buttons)
     return inline_keyboard
 
@@ -653,53 +720,40 @@ async def time_en(language, day):
             menu = ['time_08:00 dan 09:30.', 'time_09:30 dan 11:00.', 'time_11:00 dan 12:30.', 'time_13:00 dan 14:30.',
                     'time_16:00 dan 5:30.']
         case 'ru':
-            menu = ['time_08:00 dan 09:30', 'time_09:30 dan 11:00', 'time_11:00 dan 12:30', 'time_13:00 dan 14:30',
-                    'time_16:00 dan 5:30', f'level_⬅️ Orqaga.{day}']
+            menu = ['time_08:00 до 09:30', 'time_09:30 до 11:00', 'time_11:00 до 12:30', 'time_13:00 до 14:30',
+                    'time_16:00 до 5:30', f'level_⬅️ Назад.{day}']
         case 'en':
-            menu = ['time_08:00 dan 09:30', 'time_09:30 dan 11:00', 'time_11:00 dan 12:30', 'time_13:00 dan 14:30',
-                    'time_16:00 dan 5:30', f'level_⬅️ Orqaga.{day}']
+            menu = ['time_08:00 to 09:30', 'time_09:30 to 11:00', 'time_11:00 to 12:30', 'time_13:00 to 14:30',
+                    'time_16:00 to 5:30', f'level_⬅️ Back.{day}']
         case _:
-            menu = ['time_08:00 dan 09:30', 'time_09:30 dan 11:00', 'time_11:00 dan 12:30', 'time_13:00 dan 14:30',
-                    'time_16:00 dan 5:30', f'level_⬅️ Orqaga.{day}']
+            menu = ['time_08:00 to 09:30', 'time_09:30 to 11:00', 'time_11:00 to 12:30', 'time_13:00 to 14:30',
+                    'time_16:00 to 5:30', f'level_⬅️ Back.{day}']
+
     inline_button = []
     row = []
+
     for i in menu:
         row.append(InlineKeyboardButton(text=f'{i.split("_")[1].split(".")[0]}',
                                         callback_data=f'{i.split("_")[0]}_{i.split("_")[1]}'))
         if len(row) == 3:
             inline_button.append(row)
             row = []
+
     if row:
         inline_button.append(row)
-    inline_button.append([InlineKeyboardButton(text='🏠 Bosh sahifa', callback_data='menu_'),
-                          InlineKeyboardButton(text='⬅️ Orqaga', callback_data=f'confirm_{day}')])
-    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
-    return inline_keyboard
 
+    inline_button.append([InlineKeyboardButton(text='🏠 Home', callback_data='menu_'),
+                          InlineKeyboardButton(text='🔙 Back', callback_data=f'confirm_{day}')])
 
-async def settings(language):
-    text = {'uz': ['registration/full_.🖊️ Toliq registratsiyadan o\'tish', 'menu_.🏠 Bosh menu'],
-        'ru': ['registration/full_.🖊️ Toliq registratsiyadan o\'tish', 'menu_.🏠 Bosh menu'],
-        'en': ['registration/full_.🖊️ Toliq registratsiyadan o\'tish', 'menu_.🏠 Bosh menu'], }
-    inline_button = []
-    row = []
-    for i in text.get(language):
-        row.append(InlineKeyboardButton(text=f'{i.split('.')[1]}', callback_data=f'{i.split('.')[0]}'))
-        if len(row) == 2:
-            inline_button.append(row)
-            row = []
-    if row:
-        inline_button.append(row)
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
 
 async def audio_home(language):
-    text = {
-        'uz': ['/audio_home_vt_.📹 (VT) materiallar', '/audio_home_mt_.👨‍🏫 (MT) materiallar', 'menu_.🏠 Bosh menu'],
-        'ru': ['/audio_home_vt_.📹 (VT) materiallar', '/audio_home_mt_.👨‍🏫 (MT) materiallar', 'menu_.🏠 Bosh menu'],
-        'en': ['/audio_home_vt_.📹 (VT) materiallar', '/audio_home_mt_.👨‍🏫 (MT) materiallar', 'menu_.🏠 Bosh menu'],
-    }
+    text = {'uz': ['/audio_home_vt_.📹 (VT) materiallar', '/audio_home_mt_.👨‍🏫 (MT) materiallar', 'menu_.🏠 Bosh menu'],
+            'ru': ['/audio_home_vt_.📹 (VT) материалы', '/audio_home_mt_.👨‍🏫 (MT) материалы', 'menu_.🏠 Главное меню'],
+            'en': ['/audio_home_vt_.📹 (VT) materials', '/audio_home_mt_.👨‍🏫 (MT) materials', 'menu_.🏠 Main menu'], }
+
     inline_button = []
     row = []
 
@@ -720,26 +774,150 @@ async def audio_month(language, data):
     inline_button = []
     row = []
 
-    for i in range(1,17):
+    for i in range(1, 17):
         row.append(InlineKeyboardButton(text=f'{i} Month', callback_data=f'.audio_month_{i}_{data}'))
-        if len(row) == 3:
+        if len(row) == 3:  # Add up to 3 buttons in one row
             inline_button.append(row)
             row = []
 
-    if row:
+    if row:  # Add any remaining buttons
         inline_button.append(row)
 
-    text = {
-        'uz': 'menu_.🏠 Bosh sahifa',
-        'ru': 'menu_.🏠 Bosh sahifa',
-        'en': 'menu_.🏠 Bosh sahifa',
-    }
+    # Texts for different languages
+    text = {'uz': 'menu_.🏠 Bosh sahifa', 'ru': 'menu_.🏠 Бош меню', 'en': 'menu_.🏠 Home', }
 
-    inline_button.append([InlineKeyboardButton(text=text.get(language).split('_')[1],
-                                               callback_data=f"{text.get(language).split('_')[0]}")])
+    # Add home button
+    inline_button.append([InlineKeyboardButton(text=text.get(language).split('.')[1],  # Get the button text
+                                               callback_data=f"{text.get(language).split('.')[0]}")])
+
+    # Create inline keyboard markup
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
+
+async def hire(language):
+    text = {'uz': ['type_mt_.👨‍🏫 Teacher (MT)', 'type_as_.💁‍♂️ Asistent ️', 'type_vt_.🖥️ Teacher (VT)',
+                   'menu_.🏠 Bosh menu'],
+            'ru': ['type_mt_.👨‍🏫 Teacher (MT)', 'type_as_.💁‍♂️ Asistent ️', 'type_vt_.🖥️ Teacher (VT)',
+                   'menu_.🏠 Bosh menu'],
+            'en': ['type_mt_.👨‍🏫 Teacher (MT)', 'type_as_.💁‍♂️ Asistent ️', 'type_vt_.🖥️ Teacher (VT)',
+                   'menu_.🏠 Bosh menu'], }
+    inline_button = []
+    row = []
+    for i in text.get(language):
+        row.append(
+            InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}_{i.split(".")[1]}'))
+        if len(row) == 3:
+            inline_button.append(row)
+            row = []
+    if row:
+        inline_button.append(row)
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+
+
+async def yhire(page):
+    inline_keyboard = []
+    row = []
+    if int(page) == 1:
+        for i in range(current_year - 11, current_year - 28, -1):
+            row.append(InlineKeyboardButton(text=f'{i}', callback_data=f'hyear_{i}_'))
+            if len(row) == 4:
+                inline_keyboard.append(row)
+                row = []
+        if row:
+            inline_keyboard.append(row)
+        inline_keyboard.append([InlineKeyboardButton(text='⏪', callback_data=f'hyear2_{3}'),
+                                InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_'),
+                                InlineKeyboardButton(text='⏩', callback_data=f'hyear2_{2}')])
+
+        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)  # Use inline_keyboard directly
+
+    elif int(page) == 2:
+        for i in range(current_year - 28, current_year - 45, -1):
+            row.append(InlineKeyboardButton(text=f'{i}', callback_data=f'hyear_{i}_'))
+            if len(row) == 4:
+                inline_keyboard.append(row)
+                row = []
+        if row:
+            inline_keyboard.append(row)
+
+        # Correct the button addition for page 2
+        inline_keyboard.append([InlineKeyboardButton(text='⏪', callback_data=f'hyear2_{1}'),
+                                InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_'),
+                                InlineKeyboardButton(text='⏩', callback_data=f'hyear2_{3}')])
+
+        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)  # Use inline_keyboard directly
+
+    elif int(page) == 3:
+
+        for i in range(current_year - 45, current_year - 62, -1):
+
+            row.append(InlineKeyboardButton(text=f'{i}', callback_data=f'hyear_{i}_'))
+
+            if len(row) == 4:
+                inline_keyboard.append(row)
+
+                row = []
+
+        if row:
+            inline_keyboard.append(row)
+
+        inline_keyboard.append([InlineKeyboardButton(text='⏪', callback_data=f'hyear2_{2}'),
+                                InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_'),
+                                InlineKeyboardButton(text='⏩', callback_data=f'hyear2_{1}')])
+        # inline_keyboard.append([
+        #
+        # InlineKeyboardButton(text='⏪', callback_data=f'hyear2_{2}'),
+        #
+        # InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_')
+        #
+        # ])
+
+        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+
+    return inline_keyboard
+
+
+async def hexperience(language, data):
+    if data == 'experience':
+        text = {'uz': ['hexperience_yes_.✅ Ha', 'hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'type_.🔙 Orqaga'],
+                'ru': ['hexperience_yes_.✅ Ha', 'hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'type_.🔙 Orqaga'],
+                'en': ['hexperience_yes_.✅ Ha', 'hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'type_.🔙 Orqaga'], }
+    else:
+        text = {'uz': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'],
+                'ru': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'],
+                'en': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'], }
+    inline_button = []
+    row = []
+    for i in text.get(language):
+        row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}'))
+        if len(row) == 2:
+            inline_button.append(row)
+            row = []
+    if row:
+        inline_button.append(row)
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+
+
+async def conifim_hire(language):
+    text={
+        'uz':['cconifim_.✅ Hammasi tog\'ri','hire_.♻️ Boshqatan','menu_.🏠 Bosh menu'],
+        'ru':['cconifim_.✅ Hammasi tog\'ri','hire_.♻️ Boshqatan','menu_.🏠 Bosh menu'],
+        'en':['cconifim_.✅ Hammasi tog\'ri','hire_.♻️ Boshqatan','menu_.🏠 Bosh menu']
+    }
+    inline_button = []
+    row = []
+    for i in text.get(language):
+        row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}'))
+        if len(row) == 2:
+            inline_button.append(row)
+            row = []
+    if row:
+        inline_button.append(row)
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
 # ---------------------------------------functions ---------------------------------------------------------------------#
 
 
@@ -760,6 +938,26 @@ async def download_image(bot: Bot, message: Message, name: str) -> str | None:
     try:
         # Ensure the save folder exists
         save_folder = "Certificate"
+        os.makedirs(save_folder, exist_ok=True)
+
+        # Create a valid file name (replace spaces with underscores)
+        file_name = f"{name.replace(' ', '_')}.jpg"
+        save_path = os.path.join(save_folder, file_name)
+
+        # Get the file ID from the latest photo
+        file_id = message.photo[-1].file_id
+
+        # Download the file using file_id directly
+        await bot.download(file_id, save_path)
+        return save_path
+    except Exception as e:
+        print(f"Error downloading image: {e}")
+        return None
+
+async def download_image2(bot: Bot, message: Message, name: str,state:str) -> str | None:
+    try:
+        # Ensure the save folder exists
+        save_folder = f"Hire/{state}"
         os.makedirs(save_folder, exist_ok=True)
 
         # Create a valid file name (replace spaces with underscores)
@@ -868,7 +1066,11 @@ async def menu(callback_query: CallbackQuery):
         case _:
             await bot.edit_message_text(message_id=callback_query.message.message_id, text='en', chat_id=user_id,
                                         reply_markup=await home(language))
-    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    try:
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 1)
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    except TelegramBadRequest as e:
+        pass
 
 
 @dp.callback_query(F.data.startswith('lan_'))
@@ -930,9 +1132,9 @@ async def year_callback(message: Message, state: FSMContext):
     language = await get_user_language(tg_id=message.from_user.id)
     a = False
     for i in message.text:
-        if i in str([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]) or len(message.text)<7:
-                a = True
-                break
+        if i in str([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]) or len(message.text) < 7:
+            a = True
+            break
     c = message.text.split(' ')
     if len(c) != 2:
         a = True
@@ -972,8 +1174,42 @@ async def year_callback(message: Message, state: FSMContext):
 @dp.message(Register.number)
 async def number(message: Message, state: FSMContext):
     language = await get_user_language(message.from_user.id)
+    if message.contact:
+        await state.update_data(number=message.contact.phone_number)
+        match language:
+            case 'uz':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await gender(language, False))
+            case 'ru':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await gender(language, False))
+            case 'en':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await gender(language, False))
+        await state.set_state(Register.start)
+        await delete_previous_messages(message.message_id, message.from_user.id)
     if message.text:
-        if not message.text[1:].isdigit() or 9<=len(str(message.text))>=13 :
+        if message.text[:2] == '⬅️':
+            match language:
+                case 'uz':
+                    await bot.send_message(chat_id=message.from_user.id,
+                                           text='🖋️ Toliq ismingizni yozing\nMisol uchun: Abdulkhaev Xusanboy',
+                                           reply_markup=ReplyKeyboardRemove())
+                case 'ru':
+                    await bot.send_message(chat_id=message.from_user.id,
+                                           text='🖋️ Toliq ismingizni yozing\nMisol uchun: Abdulkhaev Xusanboy',
+                                           reply_markup=ReplyKeyboardRemove())
+                case 'en':
+                    await bot.send_message(chat_id=message.from_user.id,
+                                           text='🖋️ Toliq ismingizni yozing\nMisol uchun: Abdulkhaev Xusanboy',
+                                           reply_markup=ReplyKeyboardRemove())
+            await state.set_state(Register.fullname)
+            await bot.delete_message(message_id=message.message_id, chat_id=message.from_user.id)
+            await bot.delete_message(message_id=message.message_id - 1, chat_id=message.from_user.id)
+            await delete_previous_messages(message.message_id, message.from_user.id)
+            return
+
+        if not message.text[1:].isdigit() or 9 <= len(str(message.text)) >= 13:
             await state.set_state(Register.number)
             match language:
                 case 'uz':
@@ -989,24 +1225,30 @@ async def number(message: Message, state: FSMContext):
                                            text='Iltimos telfon raqamingizni 998 90 123 45 67 korinishida yoki 901234567 korinishida yuboring  \nHarf va maxsus belgilardan foydalanmang',
                                            reply_markup=await share_phone_number(language))
             return
-        if message.text[0]=='+':
+        if message.text[0] == '+':
             await state.update_data(number=message.text)
         else:
             await state.update_data(number=f'+{message.text}')
-    if message.contact:
-        await state.update_data(number=message.contact.phone_number)
+
+
+@dp.callback_query(F.data.startswith('Register_number_'))
+async def number(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
     match language:
         case 'uz':
-            await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
-                                   reply_markup=await gender(language, False))
+            await bot.send_message(chat_id=callback_query.from_user.id,
+                                   text='📞 Telefon raqamingizni kiriting yoki pastdagi tugmani bosing',
+                                   reply_markup=await share_phone_number(language))
         case 'ru':
-            await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
-                                   reply_markup=await gender(language, False))
+            await bot.send_message(chat_id=callback_query.from_user.id,
+                                   text='📞 Введите свой номер телефона или нажмите на кнопку ниже',
+                                   reply_markup=await share_phone_number(language))
         case 'en':
-            await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
-                                   reply_markup=await gender(language, False))
-    await state.set_state(Register.start)
-    await delete_previous_messages(message.message_id, message.from_user.id)
+            await bot.send_message(chat_id=callback_query.from_user.id,
+                                   text='📞 Please enter your phone number or click the button below',
+                                   reply_markup=await share_phone_number(language))
+    await state.set_state(Register.number)
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
 
 @dp.callback_query(F.data.startswith('gender_'))
@@ -1036,18 +1278,18 @@ async def year_callback(message: Message, state: FSMContext):
     language = await get_user_language(tg_id=message.from_user.id)
     if not message.text.isdigit():
         match language:
-                case 'uz':
-                    await bot.send_message(chat_id=message.from_user.id,
+            case 'uz':
+                await bot.send_message(chat_id=message.from_user.id,
                                        text='Iltimos tugilgan yilingiz kiriting o\'yin qilman')
-                case 'ru':
-                    await bot.send_message(chat_id=message.from_user.id,
+            case 'ru':
+                await bot.send_message(chat_id=message.from_user.id,
                                        text='Iltimos tugilgan yilingiz kiriting o\'yin qilman')
-                case 'en':
-                    await bot.send_message(chat_id=message.from_user.id,
+            case 'en':
+                await bot.send_message(chat_id=message.from_user.id,
                                        text='Iltimos tugilgan yilingiz kiriting o\'yin qilman')
         return
     if message.text.isdigit():
-        if len(message.text) != 4 or not current_year-60+5<int(message.text)<current_year-5:
+        if len(message.text) != 4 or not current_year - 60 + 5 < int(message.text) < current_year - 5:
             await state.set_state(Register.year)
             match language:
                 case 'uz':
@@ -1062,6 +1304,10 @@ async def year_callback(message: Message, state: FSMContext):
             await state.set_state(Register.year)
             return
     await state.update_data(year=message.text)
+    data = await state.get_data()
+    gender1 = data.get('gender')
+    fake = data.get('fake_gender')
+    gender = f'{gender1}_{fake}'
     match language:
         case 'ru':
             await bot.send_message(text='ru', chat_id=message.from_user.id, reply_markup=await month(language, gender))
@@ -1075,24 +1321,24 @@ async def year_callback(message: Message, state: FSMContext):
 
 
 @dp.callback_query(F.data.startswith('year_'))
-async def sssss(callback_query: CallbackQuery,state: FSMContext):
+async def sssss(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(tg_id=callback_query.from_user.id)
     await state.update_data(year=callback_query.data.split('_')[1])
     data = await state.get_data()
-    gender1 =data.get('gender')
+    gender1 = data.get('gender')
     fake = data.get('fake_gender')
     gender = f'{gender1}_{fake}'
     match language:
         case 'uz':
-            await bot.send_message(text='Tugilgan oyingizni tanlang',
-                                        chat_id=callback_query.from_user.id, reply_markup=await month(language, gender))
+            await bot.send_message(text='Tugilgan oyingizni tanlang', chat_id=callback_query.from_user.id,
+                                   reply_markup=await month(language, gender))
         case 'ru':
-            await bot.send_message(text='Tugilgan oyingizni tanlang',
-                                        chat_id=callback_query.from_user.id, reply_markup=await month(language, gender))
+            await bot.send_message(text='Tugilgan oyingizni tanlang', chat_id=callback_query.from_user.id,
+                                   reply_markup=await month(language, gender))
         case 'en':
-            await bot.send_message(text='Tugilgan oyingizni tanlang',
-                                        chat_id=callback_query.from_user.id, reply_markup=await month(language, gender))
-    await bot.delete_message(message_id=callback_query.message.message_id,chat_id=callback_query.from_user.id)
+            await bot.send_message(text='Tugilgan oyingizni tanlang', chat_id=callback_query.from_user.id,
+                                   reply_markup=await month(language, gender))
+    await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
     await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
 
 
@@ -1101,6 +1347,7 @@ async def month_callback(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(tg_id=callback_query.from_user.id)
     month = callback_query.data.split('_')[1]
     month_name = callback_query.data.split('_')[2][2:]
+    await state.update_data(fake_month=month)
     await state.update_data(month=month_name)
     years = await state.get_data()
     year = years.get('year')
@@ -1132,10 +1379,12 @@ async def day_callback(callback_query: CallbackQuery, state: FSMContext):
         match language:
             case 'ru':
                 await bot.edit_message_text(message_id=callback_query.message.message_id, text='ru',
-                                            chat_id=callback_query.from_user.id, reply_markup=await tuition(language))
+                                            chat_id=callback_query.from_user.id,
+                                            reply_markup=await tuition_en(language, year))
             case 'en':
                 await bot.edit_message_text(message_id=callback_query.message.message_id, text='en',
-                                            chat_id=callback_query.from_user.id, reply_markup=await tuition(language))
+                                            chat_id=callback_query.from_user.id,
+                                            reply_markup=await tuition_en(language, year))
             case 'uz':
                 await bot.edit_message_text(message_id=callback_query.message.message_id,
                                             text='Kurs darajasini tanlang', chat_id=callback_query.from_user.id,
@@ -1185,25 +1434,25 @@ async def level(callback_query: CallbackQuery, state: FSMContext):
     await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
 
 
-@dp.callback_query(F.data.startswith('more_level'))
+@dp.callback_query(F.data.startswith('more.'))
 async def level(callback_query: CallbackQuery, state: FSMContext):
-    data = callback_query.data.split('_')[1]
-    await state.update_data(level=data)
     days = await state.get_data()
-    course = days.get('course')
     day = days.get('day')
     language = await get_user_language(callback_query.from_user.id)
     match language:
         case 'ru':
             await bot.edit_message_text(message_id=callback_query.message.message_id, text='Kurs darajasini tanlang',
-                                        chat_id=callback_query.from_user.id, reply_markup=await level_more(language))
+                                        chat_id=callback_query.from_user.id,
+                                        reply_markup=await level_more(language, day))
         case 'en':
             await bot.edit_message_text(message_id=callback_query.message.message_id, text='Kurs darajasini tanlang',
-                                        chat_id=callback_query.from_user.id, reply_markup=await level_more(language))
+                                        chat_id=callback_query.from_user.id,
+                                        reply_markup=await level_more(language, day))
         case 'uz':
             await bot.edit_message_text(message_id=callback_query.message.message_id, text='Kurs darajasini tanlang',
-                                        chat_id=callback_query.from_user.id, reply_markup=await level_more(language))
-    await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message_id)
+                                        chat_id=callback_query.from_user.id,
+                                        reply_markup=await level_more(language, day))
+    await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
 
 
 @dp.callback_query(F.data.startswith('time_'))
@@ -1446,7 +1695,8 @@ async def fullname(message: Message, state: FSMContext):
         case _:
             text = 'Speaknig dan nech baho olgansiz'
     await state.set_state(Register.start)
-    await bot.send_message(chat_id=message.from_user.id,text=text, reply_markup=await scores(language, 'speaking', 'add_result', f'{fullname}'))
+    await bot.send_message(chat_id=message.from_user.id, text=text,
+                           reply_markup=await scores(language, 'speaking', 'add_result', f'{fullname}'))
 
 
 @dp.callback_query(F.data.startswith('score_fullname_'))
@@ -1478,8 +1728,8 @@ async def speaking(callback_query: CallbackQuery, state: FSMContext):
             text = 'Writing dan nech baho olgan '
         case _:
             text = 'Writing dan nech baho olgan'
-    await bot.edit_message_text(message_id=callback_query.message.message_id,chat_id=callback_query.from_user.id, text=text,
-                           reply_markup=await scores(language, f'writing', 'fullname', f'{fullname}'))
+    await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
+                                text=text, reply_markup=await scores(language, f'writing', 'fullname', f'{fullname}'))
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
 
@@ -1551,7 +1801,6 @@ async def image(message: Message, state: FSMContext):
             case 'ru':
                 await message.answer(text='Пожалуйста, отправьте только изображение 🖼')
 
-        # Set the state to capture the image again
         await state.set_state(Certificate.image)
         return
     data = await state.get_data()
@@ -1622,68 +1871,75 @@ async def stagedconifer(callback_query: CallbackQuery, state: FSMContext):
 @dp.callback_query(F.data.startswith('audio_'))
 async def audiol(callback_query: CallbackQuery):
     language = await get_user_language(callback_query.from_user.id)
-    text = {
-        'uz': 'Sizga kerakli audio qaysin bolimdan',
-        'ru': 'Sizga kerakli audio qaysin bolimdan',
-        'en': 'Sizga kerakli audio qaysin bolimdan',
-    }
+    text = {'uz': 'Sizga kerakli audio qaysin bolimdan', 'ru': 'Sizga kerakli audio qaysin bolimdan',
+            'en': 'Sizga kerakli audio qaysin bolimdan', }
     current_text = text.get(language)
     current_markup = await audio_home(language)
 
     # Check if the content or markup has changed
     if callback_query.message.text != current_text or callback_query.message.reply_markup != current_markup:
-        await bot.edit_message_text(
-            message_id=callback_query.message.message_id,
-            text=current_text,
-            chat_id=callback_query.from_user.id,
-            reply_markup=current_markup
-        )
+        await bot.edit_message_text(message_id=callback_query.message.message_id, text=current_text,
+                                    chat_id=callback_query.from_user.id, reply_markup=current_markup)
 
     # Delete previous message if necessary
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
 
 @dp.callback_query(F.data.startswith('/audio_home_'))
-async def audio_monthl(callback_query: CallbackQuery):
+async def audio_monthl(callback_query: CallbackQuery, state: FSMContext):
     data = callback_query.data.split('_')[2]
+    await state.update_data(audio_home=data)
     language = await get_user_language(callback_query.from_user.id)
-    text = {
-        'uz': f'{data.upper()} oyingizni tanlang',
-        'ru': f'{data.upper()} oyingizni tanlang',
-        'en': f'{data.upper()} oyingizni tanlang',
-    }
-    await bot.edit_message_text(message_id=callback_query.message.message_id,chat_id=callback_query.from_user.id, text=text.get(language),
-                           reply_markup=await audio_month(language, data))
+    text = {'uz': f'{data.upper()} Qaysi bosqichdagi audio', 'ru': f'{data.upper()} Qaysi bosqichdagi audio',
+            'en': f'{data.upper()} Qaysi bosqichdagi audio', }
+    await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
+                                text=text.get(language), reply_markup=await month_audio())
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
+
+@dp.callback_query(F.data.startswith('?audio_'))
+async def audio_level2(callback_query: CallbackQuery, state: FSMContext):
+    audio_level = callback_query.data.split('_')[1]
+    await state.update_data(audio_level=audio_level)
+    data3 = await state.get_data()
+    data = data3.get('audio_home')
+    language = await get_user_language(callback_query.from_user.id)
+    text = {'uz': f'{data.upper()} ni {data} larning oyini tanlang',
+            'ru': f'{data.upper()} ni {data} larning oyini tanlang',
+            'en': f'{data.upper()} ni {data} larning oyini tanlang', }
+    await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
+                                text=text.get(language), reply_markup=await audio_month(language, data))
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+
+
 @dp.callback_query(F.data.startswith('.audio_month_'))
-async def audio_month_level(callback_query: CallbackQuery):
+async def audio_month_level(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(callback_query.from_user.id)
     month = callback_query.data.split('_')[2]
-    data = callback_query.data.split('_')[3]
-    folder_path = f'./audio/{data}/{month}'
-
+    data = await state.get_data()
+    home2 = data.get('audio_home')
+    level = data.get('audio_level')
+    folder_path = f'./audio/{home2}/{level}/{month}'
+    print(folder_path)
     mp3_files = []
     for root, dirs, files in os.walk(folder_path):
         for file in files:
             if file.endswith('.mp3'):
                 mp3_files.append(os.path.join(root, file))
-    text={
-        'uz':'Bosh sahifa',
-        'ru':'Bosh sahifa',
-        'en':'Bosh sahifa',
-    }
-    # Sending each mp3 file to the user
+    text = {'uz': 'Bosh sahifa', 'ru': 'Bosh sahifa', 'en': 'Bosh sahifa', }
     for file_path in mp3_files:
         audios = FSInputFile(file_path)
-        await bot.send_chat_action(chat_id=callback_query.from_user.id,action='upload_audio')
+        await bot.send_chat_action(chat_id=callback_query.from_user.id, action='upload_audio')
         await bot.send_audio(chat_id=callback_query.from_user.id, audio=audios)
-        await bot.send_message(chat_id=callback_query.from_user.id,text=text.get(language),reply_markup=await home(language))
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id)
         try:
             await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
             await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
         except TelegramBadRequest:
             pass
+    await bot.send_message(chat_id=callback_query.from_user.id, text=text.get(str(language)),
+                           reply_markup=await home(language))
+
 
 # ------------------------------------  Certificates -------------------------------------------------------------------#
 
@@ -1717,6 +1973,169 @@ async def result(callback_query: CallbackQuery):
         await send_certificate(bot, callback_query.from_user.id, callback_query)
 
 
+# ------------------------------------Hire worker-----------------------------------------------------------------------#
+@dp.callback_query(F.data.startswith('hire_'))
+async def hire2(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    text = {'uz': 'Siz Smart English dagi qaysi soha boyicha ishlashni xoxlaysiz',
+            'ru': 'Siz Smart English dagi qaysi soha boyicha ishlashni xoxlaysiz',
+            'en': 'Siz Smart English dagi qaysi soha boyicha ishlashni xoxlaysiz', }
+    await bot.edit_message_text(message_id=callback_query.message.message_id, text=text.get(language),chat_id=callback_query.from_user.id,reply_markup=await hire(language))
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+
+
+@dp.message(Hire.name)
+async def hire_name(message: Message, state: FSMContext):
+    language = await get_user_language(message.from_user.id)
+    message_t = str(message.text.replace(' ',''))
+    a = True
+    if len(message.text.split(' ')) != 3:
+        a = False
+    for i in range(len(message_t)):
+        if message_t[i].isdigit():
+            a = False
+    if not a:
+        text = {'uz': 'FIO ingizni kiriting:\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
+                'ru': 'FIO ingizni kiriting\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
+                'en': 'FIO ingizni kiriting\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich:', }
+        await message.answer(text=text.get(language), reply_markup=ReplyKeyboardRemove())
+        await delete_previous_messages(message.message_id, message.from_user.id)
+        return
+    a, b, c = map(str, message.text.split(' '))
+    await state.update_data(name=f'{a.capitalize()} {b.capitalize()} {c.capitalize()}')
+    text = {'uz': 'Necha yoshdasiz nechada 👇 tugmalardan tanlang',
+            'ru': 'Necha yoshdasiz nechada 👇 tugmalardan tanlang',
+            'en': 'Necha yoshdasiz nechada 👇 tugmalardan tanlang', }
+    await bot.send_message(chat_id=message.from_user.id,text=text.get(language), reply_markup=await yhire(1))
+    try:
+        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id-1)
+        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id)
+        await delete_previous_messages(message.message_id, message.from_user.id)
+    except TelegramBadRequest:
+        pass
+    await state.set_state(Hire.start)
+
+
+@dp.callback_query(F.data.startswith('type_'))
+async def types(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    if len(callback_query.data.split('_')) == 3:
+        await state.update_data(state=callback_query.data.split('_')[1])
+        await state.update_data(state_fake=callback_query.data.split('.')[1])
+    text = {'uz': 'FIO ingizni kiriting:\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
+            'ru': 'FIO ingizni kiriting\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
+            'en': 'FIO ingizni kiriting\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich:', }
+    await bot.edit_message_text(text=text.get(language), chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id)
+    await state.set_state(Hire.name)
+    await delete_previous_messages(callback_query.message.message_id,callback_query.from_user.id)
+
+
+@dp.callback_query(F.data.startswith('hyear_'))
+async def hyear_get(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    if len(callback_query.data.split('_')) == 3:
+        await state.update_data(year=callback_query.data.split('_')[1])
+    text = {'uz': 'Sizda ish staji bormi', 'ru': 'Sizda ish staji bormi', 'en': 'Sizda ish staji bormi', }
+    await bot.edit_message_text(message_id=callback_query.message.message_id,text=text.get(language), chat_id=callback_query.from_user.id,
+                                reply_markup=await hexperience(language, 'experience'))
+
+
+@dp.callback_query(F.data.startswith('hyear2_'))
+async def usual(callback_query: CallbackQuery):
+    language = await get_user_language(callback_query.from_user.id)
+    data = callback_query.data.split('_')[1]
+    text = {'uz': 'Necha yoshdasiz 👇 tugmalardan tanlang', 'ru': 'Necha yoshdasiz  👇 tugmalardan tanlang',
+            'en': 'Necha yoshdasiz  👇 tugmalardan tanlang', }
+    await bot.edit_message_text(text=text.get(language), chat_id=callback_query.from_user.id,
+                                reply_markup=await yhire(int(data)), message_id=callback_query.message.message_id)
+
+
+@dp.callback_query(F.data.startswith('hexperience_'))
+async def hexperiensces(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    if len(callback_query.data.split('_')) == 3:
+        await state.update_data(experience=callback_query.data.split('_')[1])
+    text = {'uz': 'Sizning Certificatingiz bormi?', 'ru': 'Sizning Certificatingiz bormi?',
+            'en': 'Sizning Certificatingiz bormi?', }
+    await bot.edit_message_text(message_id=callback_query.message.message_id,text=text.get(language), chat_id=callback_query.from_user.id,
+                                reply_markup=await hexperience(language, 'is_certificate'))
+
+
+@dp.callback_query(F.data.startswith('is/certificate_'))
+async def is_certificate2(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    if len(callback_query.data.split('_')) == 3:
+        await state.update_data(is_certificate=callback_query.data.split('_')[1])
+    if callback_query.data.split('_')[1] == 'yes':
+        text = {'uz': '🖼 Certifiact rasmini tashlang:', 'ru': '🖼 Certifiact rasmini tashlang:',
+            'en': '🖼 Certifiact rasmini tashlang:', }
+        await state.set_state(Hire.image_certificate)
+        await bot.edit_message_text(message_id=callback_query.message.message_id,text=text.get(language), chat_id=callback_query.from_user.id)
+        return
+    if callback_query.data.split('_')[3]=='no':
+        data = await state.get_data()
+        name = data.get('name')
+        year = data.get('year')
+        state = data.get('state_fake')
+        experience = data.get('experience')
+        text2 = {
+            'uz': f'Ism sharifingiz: {name}\nIshamoqchi bolgan kasbingiz: {state}\nTug\'lgan yilingiz: {year}\nTajribangiz: {"Ha bor" if experience == "yes" else "Yo\'q"}', }
+        await bot.edit_message_text(message_id=callback_query.message.message_id,text=text2.get(language), chat_id=callback_query.from_user.id,
+                                    reply_markup=await home(language))
+
+
+@dp.message(Hire.image_certificate)
+async def hire_images3(message: Message, state: FSMContext):
+    language = await get_user_language(message.from_user.id)
+    if not message.photo:
+        text2 = {
+            'uz': '🖼 Certifiact rasmini tashlang:',
+            'ru': '🖼 Certifiact rasmini tashlang:',
+            'en': '🖼 Certifiact rasmini tashlang:',
+        }
+        await bot.send_message(text=text2.get(language), chat_id=message.from_user.id)
+        await delete_previous_messages(message.message_id, message.from_user.id)
+        return
+    data = await state.get_data()
+    stater = data.get('state')
+    state_fake = data.get('state_fake')
+    name = data.get('name')
+    year = data.get('year')
+    experience = data.get('experience')
+    inf = f"Hire/{stater}/{name.replace(' ', '_')}.jpg"
+    await state.update_data(image_certificate=inf)
+
+    download_path = await download_image2(bot, message, name, stater)
+    if not download_path:
+        await message.answer("❌ Failed to download the image.")
+        return
+
+    text = {
+        'uz': (f"👤 Ism sharifingiz: {name}\n"
+               f"🗓️ Tug'ilgan yilingiz: {year}\n"
+               f"🗂️ Tanlagan kasbingiz: {state_fake}\n"
+               f"🏅 Tajribangiz: {experience} yil"),
+        'ru': (f"👤 Ваше имя: {name}\n"
+               f"🗓️ Год вашего рождения: {year}\n"
+               f"🗂️ Ваша выбранная профессия: {state_fake}\n"
+               f"🏅 Ваш опыт: {experience} лет"),
+        'en': (f"👤 Your full name: {name}\n"
+               f"🗓️ Year of birth: {year}\n"
+               f"🗂️ Chosen profession: {state_fake}\n"
+               f"🏅 Experience: {experience} years")
+    }
+
+    await bot.send_photo(
+        chat_id=message.from_user.id,
+        caption=text.get(language),
+        photo=FSInputFile(message.photo[-1].file_id),
+        reply_markup=await conifim_hire(language)
+    )
+    try:
+        await delete_previous_messages(message.message_id, message.from_user.id)
+    except TelegramBadRequest:
+        pass
+
 # ------------------------------------Middleware------------------------------------------------------------------------#
 class TestMiddleware(BaseMiddleware):
     async def __call__(self, handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]], event: TelegramObject,
@@ -1736,16 +2155,14 @@ dp.update.middleware(TestMiddleware())
 
 @dp.message(CommandStart)
 async def deleter(message: Message):
+    sleep(10)
     try:
-        sleep(0.4)
-        for _ in range(10):
-            await message.delete()
-        await delete_previous_messages(message.message_id, message.from_user.id)
+        await message.delete()
     except TelegramBadRequest as error:
         print("Failed to delete message:", error)
 
 
-# --------------------------------- Polling the bot ---------------------------------------------------------------------#
+# --------------------------------- Polling the bot --------------------------------------------------------------------#
 async def main():
     await init()
     print(f'Bot stareted at {formatted_time}')
