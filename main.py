@@ -72,6 +72,19 @@ class Results_English(Base):
     image = Column(String, nullable=False)
 
 
+class Hire_employee(Base):
+    __tablename__ = 'Hire_employee'
+    id = Column(Integer, primary_key=True)
+    tg_id = Column(Integer, nullable=False, unique=True)
+    tg_username = Column(String, nullable=False, default='no')
+    number = Column(String, nullable=False, default='not yet')
+    name = Column(String, nullable=False)
+    year = Column(String, nullable=False)
+    certificate = Column(String, nullable=False, default=False)
+    experience = Column(String, nullable=False, default=False)
+    image = Column(String, nullable=False, default='./Hire/.💁‍♂️ Asistent ️/Abdulkhaev_Xusabvoy_Solijonivich.jpg')
+
+
 async def init():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -90,6 +103,15 @@ async def add_user(tg_id: int, username: str, name: str) -> None:
     async with async_session() as session:
         new_user = User(tg_id=tg_id, tg_username=username, tg_name=name, language="en"  # default language if needed
                         )
+        session.add(new_user)
+        await session.commit()
+
+
+async def hire_employee(tg_id: int, username: str, name: str, year: str, certificate: str, experience: str,
+                        image: str, ) -> None:
+    async with async_session() as session:
+        new_user = Hire_employee(tg_id=tg_id, tg_username=username, name=name, year=year, certificate=certificate,
+                                 experience=experience, image=image)
         session.add(new_user)
         await session.commit()
 
@@ -175,7 +197,7 @@ class Hire(StatesGroup):
     start = State()
     name = State()
     year = State()
-    state = State()
+    stater = State()
     state_fake = State()
     experience = State()
     is_certificate = State()
@@ -806,7 +828,7 @@ async def hire(language):
     row = []
     for i in text.get(language):
         row.append(
-            InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}_{i.split(".")[1]}'))
+            InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}.{i.split(".")[1]}'))
         if len(row) == 3:
             inline_button.append(row)
             row = []
@@ -885,9 +907,10 @@ async def hexperience(language, data):
                 'ru': ['hexperience_yes_.✅ Ha', 'hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'type_.🔙 Orqaga'],
                 'en': ['hexperience_yes_.✅ Ha', 'hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'type_.🔙 Orqaga'], }
     else:
-        text = {'uz': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'],
-                'ru': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'],
-                'en': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'], }
+        text = {
+            'uz': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'],
+            'ru': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'],
+            'en': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'], }
     inline_button = []
     row = []
     for i in text.get(language):
@@ -902,11 +925,9 @@ async def hexperience(language, data):
 
 
 async def conifim_hire(language):
-    text={
-        'uz':['cconifim_.✅ Hammasi tog\'ri','hire_.♻️ Boshqatan','menu_.🏠 Bosh menu'],
-        'ru':['cconifim_.✅ Hammasi tog\'ri','hire_.♻️ Boshqatan','menu_.🏠 Bosh menu'],
-        'en':['cconifim_.✅ Hammasi tog\'ri','hire_.♻️ Boshqatan','menu_.🏠 Bosh menu']
-    }
+    text = {'uz': ['cconifim_.✅ Hammasi tog\'ri', 'hire_.♻️ Boshqatan', 'menu_.🏠 Bosh menu'],
+            'ru': ['cconifim_.✅ Hammasi tog\'ri', 'hire_.♻️ Boshqatan', 'menu_.🏠 Bosh menu'],
+            'en': ['cconifim_.✅ Hammasi tog\'ri', 'hire_.♻️ Boshqatan', 'menu_.🏠 Bosh menu']}
     inline_button = []
     row = []
     for i in text.get(language):
@@ -918,6 +939,8 @@ async def conifim_hire(language):
         inline_button.append(row)
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
+
+
 # ---------------------------------------functions ---------------------------------------------------------------------#
 
 
@@ -954,7 +977,8 @@ async def download_image(bot: Bot, message: Message, name: str) -> str | None:
         print(f"Error downloading image: {e}")
         return None
 
-async def download_image2(bot: Bot, message: Message, name: str,state:str) -> str | None:
+
+async def download_image2(bot: Bot, message: Message, name: str, state: str) -> str | None:
     try:
         # Ensure the save folder exists
         save_folder = f"Hire/{state}"
@@ -1067,8 +1091,9 @@ async def menu(callback_query: CallbackQuery):
             await bot.edit_message_text(message_id=callback_query.message.message_id, text='en', chat_id=user_id,
                                         reply_markup=await home(language))
     try:
-        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 1)
         await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 1)
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 2)
     except TelegramBadRequest as e:
         pass
 
@@ -1654,7 +1679,11 @@ async def add_result(message: Message, state: FSMContext):
             text = "Certificat kimga tegishli ekanligini to'liq yozing \nMisol uchun: Akmaljon Khusanov"
     await message.answer(text=text)
     await state.set_state(Certificate.fullname)
-    await delete_previous_messages(message.message_id, message.from_user.id)
+    try:
+        await bot.delete_message(message_id=message.message_id, chat_id=message.from_user.id)
+        await delete_previous_messages(message.message_id, message.from_user.id)
+    except TelegramBadRequest:
+        pass
 
 
 @dp.callback_query(F.data.startswith('score_add_result_'))
@@ -1875,6 +1904,7 @@ async def audiol(callback_query: CallbackQuery):
             'en': 'Sizga kerakli audio qaysin bolimdan', }
     current_text = text.get(language)
     current_markup = await audio_home(language)
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
     # Check if the content or markup has changed
     if callback_query.message.text != current_text or callback_query.message.reply_markup != current_markup:
@@ -1882,7 +1912,11 @@ async def audiol(callback_query: CallbackQuery):
                                     chat_id=callback_query.from_user.id, reply_markup=current_markup)
 
     # Delete previous message if necessary
-    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    try:
+        await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    except TelegramBadRequest:
+        pass
 
 
 @dp.callback_query(F.data.startswith('/audio_home_'))
@@ -1931,14 +1965,13 @@ async def audio_month_level(callback_query: CallbackQuery, state: FSMContext):
         audios = FSInputFile(file_path)
         await bot.send_chat_action(chat_id=callback_query.from_user.id, action='upload_audio')
         await bot.send_audio(chat_id=callback_query.from_user.id, audio=audios)
-        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id)
-        try:
-            await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
-            await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
-        except TelegramBadRequest:
-            pass
     await bot.send_message(chat_id=callback_query.from_user.id, text=text.get(str(language)),
                            reply_markup=await home(language))
+    try:
+        await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    except TelegramBadRequest:
+        pass
 
 
 # ------------------------------------  Certificates -------------------------------------------------------------------#
@@ -1959,8 +1992,8 @@ async def results(callback_query: CallbackQuery):
                                     text='Smart English o\'quv markazdagi kurslardan birini tanlang',
                                     chat_id=callback_query.from_user.id, reply_markup=await result_home(language))
     try:
-        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 2)
         await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 1)
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 2)
         await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
     except TelegramBadRequest as e:
         pass
@@ -1980,54 +2013,67 @@ async def hire2(callback_query: CallbackQuery, state: FSMContext):
     text = {'uz': 'Siz Smart English dagi qaysi soha boyicha ishlashni xoxlaysiz',
             'ru': 'Siz Smart English dagi qaysi soha boyicha ishlashni xoxlaysiz',
             'en': 'Siz Smart English dagi qaysi soha boyicha ishlashni xoxlaysiz', }
-    await bot.edit_message_text(message_id=callback_query.message.message_id, text=text.get(language),chat_id=callback_query.from_user.id,reply_markup=await hire(language))
-    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    await bot.edit_message_text(message_id=callback_query.message.message_id, text=text.get(language),
+                                chat_id=callback_query.from_user.id, reply_markup=await hire(language))
+    try:
+        await bot.delete_message(message_id=callback_query.message.message_id - 1, chat_id=callback_query.from_user.id)
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    except TelegramBadRequest:
+        pass
 
 
 @dp.message(Hire.name)
 async def hire_name(message: Message, state: FSMContext):
     language = await get_user_language(message.from_user.id)
-    message_t = str(message.text.replace(' ',''))
-    a = True
-    if len(message.text.split(' ')) != 3:
-        a = False
-    for i in range(len(message_t)):
-        if message_t[i].isdigit():
-            a = False
-    if not a:
+    message_text = message.text.strip()
+    name_parts = message_text.split()
+    if any(part.isdigit() for part in name_parts) or len(name_parts) < 2:
         text = {'uz': 'FIO ingizni kiriting:\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
                 'ru': 'FIO ingizni kiriting\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
-                'en': 'FIO ingizni kiriting\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich:', }
+                'en': 'FIO ingizni kiriting\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich'}
         await message.answer(text=text.get(language), reply_markup=ReplyKeyboardRemove())
         await delete_previous_messages(message.message_id, message.from_user.id)
         return
-    a, b, c = map(str, message.text.split(' '))
-    await state.update_data(name=f'{a.capitalize()} {b.capitalize()} {c.capitalize()}')
+
+    # Capitalize each part and store the name
+    name_parts = [part.capitalize() for part in name_parts]  # Capitalize each part
+    full_name = " ".join(name_parts)  # Join the parts back into a full name
+
+    # Store the name in the state
+    await state.update_data(name=full_name)
+
+    # Proceed to next step
     text = {'uz': 'Necha yoshdasiz nechada 👇 tugmalardan tanlang',
             'ru': 'Necha yoshdasiz nechada 👇 tugmalardan tanlang',
-            'en': 'Necha yoshdasiz nechada 👇 tugmalardan tanlang', }
-    await bot.send_message(chat_id=message.from_user.id,text=text.get(language), reply_markup=await yhire(1))
+            'en': 'Necha yoshdasiz nechada 👇 tugmalardan tanlang'}
+    await bot.send_message(chat_id=message.from_user.id, text=text.get(language), reply_markup=await yhire(1))
+
+    # Set state for next input
+    await state.set_state(Hire.start)
+
+    # Delete previous messages
     try:
-        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id-1)
+        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id - 1)
         await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id)
         await delete_previous_messages(message.message_id, message.from_user.id)
     except TelegramBadRequest:
         pass
-    await state.set_state(Hire.start)
 
 
 @dp.callback_query(F.data.startswith('type_'))
 async def types(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(callback_query.from_user.id)
+    print(callback_query.data)
     if len(callback_query.data.split('_')) == 3:
-        await state.update_data(state=callback_query.data.split('_')[1])
+        await state.update_data(stater=callback_query.data.split('_')[2])
         await state.update_data(state_fake=callback_query.data.split('.')[1])
     text = {'uz': 'FIO ingizni kiriting:\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
             'ru': 'FIO ingizni kiriting\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
             'en': 'FIO ingizni kiriting\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich:', }
-    await bot.edit_message_text(text=text.get(language), chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id)
+    await bot.edit_message_text(text=text.get(language), chat_id=callback_query.from_user.id,
+                                message_id=callback_query.message.message_id)
     await state.set_state(Hire.name)
-    await delete_previous_messages(callback_query.message.message_id,callback_query.from_user.id)
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
 
 @dp.callback_query(F.data.startswith('hyear_'))
@@ -2036,7 +2082,8 @@ async def hyear_get(callback_query: CallbackQuery, state: FSMContext):
     if len(callback_query.data.split('_')) == 3:
         await state.update_data(year=callback_query.data.split('_')[1])
     text = {'uz': 'Sizda ish staji bormi', 'ru': 'Sizda ish staji bormi', 'en': 'Sizda ish staji bormi', }
-    await bot.edit_message_text(message_id=callback_query.message.message_id,text=text.get(language), chat_id=callback_query.from_user.id,
+    await bot.edit_message_text(message_id=callback_query.message.message_id, text=text.get(language),
+                                chat_id=callback_query.from_user.id,
                                 reply_markup=await hexperience(language, 'experience'))
 
 
@@ -2057,7 +2104,8 @@ async def hexperiensces(callback_query: CallbackQuery, state: FSMContext):
         await state.update_data(experience=callback_query.data.split('_')[1])
     text = {'uz': 'Sizning Certificatingiz bormi?', 'ru': 'Sizning Certificatingiz bormi?',
             'en': 'Sizning Certificatingiz bormi?', }
-    await bot.edit_message_text(message_id=callback_query.message.message_id,text=text.get(language), chat_id=callback_query.from_user.id,
+    await bot.edit_message_text(message_id=callback_query.message.message_id, text=text.get(language),
+                                chat_id=callback_query.from_user.id,
                                 reply_markup=await hexperience(language, 'is_certificate'))
 
 
@@ -2068,73 +2116,101 @@ async def is_certificate2(callback_query: CallbackQuery, state: FSMContext):
         await state.update_data(is_certificate=callback_query.data.split('_')[1])
     if callback_query.data.split('_')[1] == 'yes':
         text = {'uz': '🖼 Certifiact rasmini tashlang:', 'ru': '🖼 Certifiact rasmini tashlang:',
-            'en': '🖼 Certifiact rasmini tashlang:', }
+                'en': '🖼 Certifiact rasmini tashlang:', }
+        await bot.edit_message_text(message_id=callback_query.message.message_id, text=text.get(language),
+                                    chat_id=callback_query.from_user.id)
         await state.set_state(Hire.image_certificate)
-        await bot.edit_message_text(message_id=callback_query.message.message_id,text=text.get(language), chat_id=callback_query.from_user.id)
-        return
-    if callback_query.data.split('_')[3]=='no':
+    if callback_query.data.split('_')[1] == 'no':
         data = await state.get_data()
         name = data.get('name')
-        year = data.get('year')
-        state = data.get('state_fake')
-        experience = data.get('experience')
-        text2 = {
-            'uz': f'Ism sharifingiz: {name}\nIshamoqchi bolgan kasbingiz: {state}\nTug\'lgan yilingiz: {year}\nTajribangiz: {"Ha bor" if experience == "yes" else "Yo\'q"}', }
-        await bot.edit_message_text(message_id=callback_query.message.message_id,text=text2.get(language), chat_id=callback_query.from_user.id,
-                                    reply_markup=await home(language))
+        text2 = {'uz': (f"👤 Ism sharifingiz: {name}\n🗓️ Tug'ilgan yilingiz: {data.get('year')}\n"
+                        f"🗂️ Tanlagan kasbingiz: {data.get('state_fake')}\n🏅 Tajribangiz: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
+            'ru': (f"👤 Ваше имя: {name}\n🗓️ Год вашего рождения: {data.get('year')}\n"
+                   f"🗂️ Ваша выбранная профессия: {data.get('state_fake')}\n🏅 Ваш опыт: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
+            'en': (f"👤 Your full name: {name}\n🗓️ Year of birth: {data.get('year')}\n"
+                   f"🗂️ Chosen profession: {data.get('state_fake')}\n🏅 Experience: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}")}
+        await bot.edit_message_text(message_id=callback_query.message.message_id, text=text2.get(language),
+                                    chat_id=callback_query.from_user.id, reply_markup=await conifim_hire(language))
 
 
 @dp.message(Hire.image_certificate)
 async def hire_images3(message: Message, state: FSMContext):
     language = await get_user_language(message.from_user.id)
+
+    # Check if a photo exists in the message
     if not message.photo:
-        text2 = {
-            'uz': '🖼 Certifiact rasmini tashlang:',
-            'ru': '🖼 Certifiact rasmini tashlang:',
-            'en': '🖼 Certifiact rasmini tashlang:',
-        }
-        await bot.send_message(text=text2.get(language), chat_id=message.from_user.id)
-        await delete_previous_messages(message.message_id, message.from_user.id)
+        await message.answer("❌ Certifikat rasmini yuboring.")
         return
+
+    # Get the user's data from state
     data = await state.get_data()
-    stater = data.get('state')
-    state_fake = data.get('state_fake')
-    name = data.get('name')
-    year = data.get('year')
-    experience = data.get('experience')
-    inf = f"Hire/{stater}/{name.replace(' ', '_')}.jpg"
+    stater = data.get('stater')  # Position the user is applying for
+    name = data.get('name')  # User's full name
+
+    # Ensure that all required data is present
+    if not name or not stater:
+        await message.answer("❌ Malumotlar to'liq emas. Qaytadan urining.")
+        return
+
+    # Create a safe file name for saving the certificate image
+    inf = f"Hire/{stater}/{name.replace(' ', '_')}_certificate.jpg"
+
+    # Update the state with the file path
     await state.update_data(image_certificate=inf)
 
-    download_path = await download_image2(bot, message, name, stater)
-    if not download_path:
-        await message.answer("❌ Failed to download the image.")
+    # Try to download the photo and handle potential errors
+    try:
+        # Download the image from Telegram (this function must be implemented)
+        download_path = await download_image2(bot, message, name, stater)
+        if not download_path:
+            await message.answer("❌ Failed to download the image.")
+            return
+    except Exception as e:
+        await message.answer(f"❌ An error occurred while downloading the image: {e}")
         return
 
-    text = {
-        'uz': (f"👤 Ism sharifingiz: {name}\n"
-               f"🗓️ Tug'ilgan yilingiz: {year}\n"
-               f"🗂️ Tanlagan kasbingiz: {state_fake}\n"
-               f"🏅 Tajribangiz: {experience} yil"),
-        'ru': (f"👤 Ваше имя: {name}\n"
-               f"🗓️ Год вашего рождения: {year}\n"
-               f"🗂️ Ваша выбранная профессия: {state_fake}\n"
-               f"🏅 Ваш опыт: {experience} лет"),
-        'en': (f"👤 Your full name: {name}\n"
-               f"🗓️ Year of birth: {year}\n"
-               f"🗂️ Chosen profession: {state_fake}\n"
-               f"🏅 Experience: {experience} years")
-    }
+    # Prepare the summary text to send to the user
+    text = {'uz': (f"👤 Ism sharifingiz: {name}\n🗓️ Tug'ilgan yilingiz: {data.get('year')}\n"
+                   f"🗂️ Tanlagan kasbingiz: {data.get('state_fake')}\n🏅 Tajribangiz: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
+        'ru': (f"👤 Ваше имя: {name}\n🗓️ Год вашего рождения: {data.get('year')}\n"
+               f"🗂️ Ваша выбранная профессия: {data.get('state_fake')}\n🏅 Ваш опыт: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
+        'en': (f"👤 Your full name: {name}\n🗓️ Year of birth: {data.get('year')}\n"
+               f"🗂️ Chosen profession: {data.get('state_fake')}\n🏅 Experience: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}")}
 
-    await bot.send_photo(
-        chat_id=message.from_user.id,
-        caption=text.get(language),
-        photo=FSInputFile(message.photo[-1].file_id),
-        reply_markup=await conifim_hire(language)
-    )
+    # Send the photo and user details to the user
     try:
-        await delete_previous_messages(message.message_id, message.from_user.id)
+        await bot.send_photo(chat_id=message.from_user.id, caption=text.get(language), photo=message.photo[-1].file_id,
+                             reply_markup=await conifim_hire(language))
+        try:
+            await bot.delete_message(message_id=message.message_id, chat_id=message.from_user.id)
+            await bot.delete_message(message_id=message.message_id - 1, chat_id=message.from_user.id)
+            await delete_previous_messages(message.message_id, message.from_user.id)
+        except TelegramBadRequest:
+            pass
+    except Exception as e:
+        await message.answer(f"❌ An error occurred while sending the photo: {e}")
+        return
+
+    # Optionally clear state after processing is done  # await state.finish()  # If you want to end the state machine here
+
+
+@dp.callback_query(F.data.startswith('cconifim_'))
+async def confirm3(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    text = {'uz': 'Agar siz bizga kerek bolsangiz biz sizga bot orqali aloqaga chiqmiz',
+        'ru': 'Agar siz bizga kerek bolsangiz biz sizga bot orqali aloqaga chiqmiz',
+        'en': 'Agar siz bizga kerek bolsangiz biz sizga bot orqali aloqaga chiqmiz', }
+    text2 = {'uz': '🏠 Bosh menu', 'ru': '🏠 Bosh menu', 'en': '🏠 Bosh menu', }
+    await bot.send_message(chat_id=callback_query.message.chat.id, text=text.get(language),
+                           reply_markup=await InlineKeyboardMarkup(inline_keyboard=[
+                               [InlineKeyboardButton(text=text2.get(language), callback_data='menu_')]]))
+    try:
+        await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
+        await bot.delete_message(message_id=callback_query.message.message_id - 1, chat_id=callback_query.from_user.id)
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
     except TelegramBadRequest:
         pass
+
 
 # ------------------------------------Middleware------------------------------------------------------------------------#
 class TestMiddleware(BaseMiddleware):
@@ -2155,7 +2231,6 @@ dp.update.middleware(TestMiddleware())
 
 @dp.message(CommandStart)
 async def deleter(message: Message):
-    sleep(10)
     try:
         await message.delete()
     except TelegramBadRequest as error:
