@@ -43,6 +43,7 @@ class User(Base):
     language = Column(String, nullable=False)
     role = Column(String, nullable=False, default='User')
     registered = Column(Boolean, nullable=False, default=False)
+    register_time = Column(DateTime, nullable=True)
 
 
 class Registering(Base):
@@ -56,7 +57,7 @@ class Registering(Base):
     level = Column(String, nullable=True, default='Not chosen')
     time = Column(String, nullable=True)
     telegram_information = Column(Integer, ForeignKey(User.tg_id, ondelete='CASCADE'))
-    is_connected = Column(Boolean, nullable=True, default=False)
+    is_connected = Column(String, nullable=True, default='no')
     registered_time = Column(DateTime, default=func.now())
 
 
@@ -70,6 +71,7 @@ class Results_English(Base):
     listening = Column(String, nullable=False)
     Overall_Band = Column(String, nullable=False)
     image = Column(String, nullable=False)
+    register_time = Column(DateTime, nullable=True)
 
 
 class Hire_employee(Base):
@@ -83,6 +85,7 @@ class Hire_employee(Base):
     certificate = Column(String, nullable=False, default=False)
     experience = Column(String, nullable=False, default=False)
     image = Column(String, nullable=False, default='./Hire/.💁‍♂️ Asistent ️/Abdulkhaev_Xusabvoy_Solijonivich.jpg')
+    register_time = Column(DateTime, nullable=True)
 
 
 async def init():
@@ -96,6 +99,22 @@ async def get_user_language(tg_id) -> str:
         stmt = select(User.language).where(User.tg_id == tg_id)
         result = await session.execute(stmt)
         user_language = result.scalar_one_or_none()
+        return user_language
+
+
+async def call_centre():
+    async with async_session() as session:
+        stmt = select(User.tg_id).where(User.role == 'Call_Centre')
+        result1 = await session.execute(stmt)
+        user_language = result1.scalar_one_or_none()
+        return user_language
+
+
+async def user_role(tg_id):
+    async with async_session() as session:
+        stmt = select(User.role).where(User.tg_id == tg_id)
+        result1 = await session.execute(stmt)
+        user_language = result1.scalar_one_or_none()
         return user_language
 
 
@@ -168,6 +187,22 @@ async def get_results_en():
         return user_language
 
 
+async def manager():
+    async with async_session() as session:
+        stmt = select(User.tg_id).where(User.role == 'Manager')
+        result1 = await session.execute(stmt)
+        user_language = result1.scalar_one_or_none()
+        return user_language
+
+
+async def all_users():
+    async with async_session() as session:
+        stmt = select(User.tg_id)  # Selects all tg_id values from the User table
+        result = await session.execute(stmt)  # Executes the query
+        user_ids = result.scalars().all()  # Fetches all tg_ids as a list
+        return user_ids  # Returns the list of Telegram IDs
+
+
 # -------------------------------------time-----------------------------------------------------------------------------#
 current_time = localtime()
 current_year = current_time.tm_year
@@ -202,6 +237,17 @@ class Hire(StatesGroup):
     experience = State()
     is_certificate = State()
     image_certificate = State()
+
+
+class Complain(StatesGroup):
+    start = State()
+    teacher_type = State()
+    teacher_name = State()
+    message = State()
+
+
+class Suggestions(StatesGroup):
+    start = State()
 
 
 class Audio(StatesGroup):
@@ -344,6 +390,23 @@ async def gender(language, is_state):
         inline_button.append(row)
 
     # Create InlineKeyboardMarkup
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+
+
+async def kb_complain(language):
+    inline_button = []
+    row = []
+    text = {'uz': ['s_complain_.✅ Tastiqlash va yuborish', 'complain.🔄 Qaytadan', 'menu_.🏠 Bosh menu'],
+            'ru': ['s_complain_.✅ Tastiqlash va yuborish', 'complain.🔄 Qaytadan', 'menu_.🏠 Bosh menu'],
+            'en': ['s_complain_.✅ Tastiqlash va yuborish', 'complain.🔄 Qaytadan', 'menu_.🏠 Bosh menu'], }
+    for i in text.get(language):
+        row.append(InlineKeyboardButton(text=f"{i.split('.')[1]}", callback_data=f"{i.split('.')[0]}"))
+        if len(row) == 2:
+            inline_button.append(row)
+            row = []
+    if row:
+        inline_button.append(row)
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
@@ -671,9 +734,9 @@ async def tuition_en(language, year):
     return None
 
 
-async def level_more(language, day):
+async def level_more(language, day, month_name):
     text = {'uz': ['level_kids.⭐️ Kids', 'level_intermittent.⭐️ Intermittent', 'level_adult.⭐️ Adult',
-                   'level_ielt.⭐️ IELTS', 'menu_.🏠 Bosh menuga qaytish', f'month_{day}.🔙 Ortga'],
+                   'level_ielt.⭐️ IELTS', 'menu_.🏠 Bosh menuga qaytish', f'month_{day}_{month_name}.🔙 Ortga'],
             'ru': ['level_kids.⭐️ Kids', 'level_intermittent.⭐️ Intermittent', 'level_adult.⭐️ Adult',
                    'level_ielt.⭐️ IELTS', 'menu_.🏠 Bosh menuga qaytish', f'month_{day}.🔙 Ortga'],
             'en': ['level_kids.⭐️ Kids', 'level_intermittent.⭐️ Intermittent', 'level_adult.⭐️ Adult',
@@ -699,6 +762,19 @@ async def level_more(language, day):
         inline_button.append(row)
 
     # Return the inline keyboard markup
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+
+
+async def call(number, tg_id):
+    inline_button = []
+    inline_button.append([InlineKeyboardButton(text='🤙 Telefon raqamni olib qoyish ⚠️⚠️⚠️ maslahat beriladi',
+                                               switch_inline_query=number)])
+    row = []
+    text = [f'☎️ Telefon qildim.clled_{tg_id}', f'❌ Telefon raqam buziq.broken_{tg_id}']
+    for i in range(2):
+        row.append(InlineKeyboardButton(text=f"{text[i].split('.')[0]}", callback_data=f"{text[i].split('.')[1]}"))
+        inline_button.append(row)
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
@@ -736,20 +812,20 @@ async def confirmt(language, is_state):
     return inline_keyboard
 
 
-async def time_en(language, day):
+async def time_en(language, day, course):
     match language:
         case 'uz':
             menu = ['time_08:00 dan 09:30.', 'time_09:30 dan 11:00.', 'time_11:00 dan 12:30.', 'time_13:00 dan 14:30.',
                     'time_16:00 dan 5:30.']
         case 'ru':
             menu = ['time_08:00 до 09:30', 'time_09:30 до 11:00', 'time_11:00 до 12:30', 'time_13:00 до 14:30',
-                    'time_16:00 до 5:30', f'level_⬅️ Назад.{day}']
+                    'time_16:00 до 5:30']
         case 'en':
             menu = ['time_08:00 to 09:30', 'time_09:30 to 11:00', 'time_11:00 to 12:30', 'time_13:00 to 14:30',
-                    'time_16:00 to 5:30', f'level_⬅️ Back.{day}']
+                    'time_16:00 to 5:30']
         case _:
             menu = ['time_08:00 to 09:30', 'time_09:30 to 11:00', 'time_11:00 to 12:30', 'time_13:00 to 14:30',
-                    'time_16:00 to 5:30', f'level_⬅️ Back.{day}']
+                    'time_16:00 to 5:30']
 
     inline_button = []
     row = []
@@ -763,9 +839,12 @@ async def time_en(language, day):
 
     if row:
         inline_button.append(row)
-
-    inline_button.append([InlineKeyboardButton(text='🏠 Home', callback_data='menu_'),
-                          InlineKeyboardButton(text='🔙 Back', callback_data=f'confirm_{day}')])
+    if course == 'English':
+        inline_button.append([InlineKeyboardButton(text='🏠 Home', callback_data='menu_'),
+                              InlineKeyboardButton(text='🔙 Back', callback_data=f'day_{day}')])
+    else:
+        inline_button.append([InlineKeyboardButton(text='🏠 Home', callback_data='menu_'),
+                              InlineKeyboardButton(text='🔙 Back', callback_data=f'month_{day}')])
 
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
@@ -818,18 +897,29 @@ async def audio_month(language, data):
 
 
 async def hire(language):
-    text = {'uz': ['type_mt_.👨‍🏫 Teacher (MT)', 'type_as_.💁‍♂️ Asistent ️', 'type_vt_.🖥️ Teacher (VT)',
-                   'menu_.🏠 Bosh menu'],
-            'ru': ['type_mt_.👨‍🏫 Teacher (MT)', 'type_as_.💁‍♂️ Asistent ️', 'type_vt_.🖥️ Teacher (VT)',
-                   'menu_.🏠 Bosh menu'],
-            'en': ['type_mt_.👨‍🏫 Teacher (MT)', 'type_as_.💁‍♂️ Asistent ️', 'type_vt_.🖥️ Teacher (VT)',
-                   'menu_.🏠 Bosh menu'], }
+    text = {'uz': ['type_main_.🧑‍🏫 O‘qituvchi (MT)',  # Main Teacher - 🧑‍🏫 (Teacher)
+                   'type_assistant_.🧑‍💼 Assistent',  # Assistant - 🧑‍💼 (Office worker)
+                   'type_examiner_.📝 Imtihon oluvchi (Examiner)',  # Examiner - 📝 (Writing)
+                   'type_video_.🖥️ O‘qituvchi (VT)',  # Video Teacher - 🖥️ (Computer)
+                   'menu_.🏠 Bosh menu'  # Main Menu - 🏠 (House)
+                   ], 'ru': ['type_main_.🧑‍🏫 Учитель (MT)',  # Main Teacher - 🧑‍🏫 (Teacher)
+                             'type_assistant_.🧑‍💼 Ассистент',  # Assistant - 🧑‍💼 (Office worker)
+                             'type_examiner_.📝 Экзаменатор',  # Examiner - 📝 (Writing)
+                             'type_video_.🖥️ Учитель (VT)',  # Video Teacher - 🖥️ (Computer)
+                             'menu_.🏠 Главное меню'  # Main Menu - 🏠 (House)
+                             ], 'en': ['type_main_.🧑‍🏫 Teacher (MT)',  # Main Teacher - 🧑‍🏫 (Teacher)
+                                       'type_assistant_.🧑‍💼 Assistant',  # Assistant - 🧑‍💼 (Office worker)
+                                       'type_examiner_.📝 Examiner',  # Examiner - 📝 (Writing)
+                                       'type_video_.🖥️ Teacher (VT)',  # Video Teacher - 🖥️ (Computer)
+                                       'menu_.🏠 Main menu'  # Main Menu - 🏠 (House)
+                                       ]}
+
     inline_button = []
     row = []
     for i in text.get(language):
         row.append(
             InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}.{i.split(".")[1]}'))
-        if len(row) == 3:
+        if len(row) == 4:
             inline_button.append(row)
             row = []
     if row:
@@ -841,6 +931,7 @@ async def hire(language):
 async def yhire(page):
     inline_keyboard = []
     row = []
+
     if int(page) == 1:
         for i in range(current_year - 11, current_year - 28, -1):
             row.append(InlineKeyboardButton(text=f'{i}', callback_data=f'hyear_{i}_'))
@@ -849,11 +940,11 @@ async def yhire(page):
                 row = []
         if row:
             inline_keyboard.append(row)
+
+        # Navigation buttons for page 1
         inline_keyboard.append([InlineKeyboardButton(text='⏪', callback_data=f'hyear2_{3}'),
                                 InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_'),
                                 InlineKeyboardButton(text='⏩', callback_data=f'hyear2_{2}')])
-
-        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)  # Use inline_keyboard directly
 
     elif int(page) == 2:
         for i in range(current_year - 28, current_year - 45, -1):
@@ -864,53 +955,40 @@ async def yhire(page):
         if row:
             inline_keyboard.append(row)
 
-        # Correct the button addition for page 2
+        # Navigation buttons for page 2
         inline_keyboard.append([InlineKeyboardButton(text='⏪', callback_data=f'hyear2_{1}'),
                                 InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_'),
                                 InlineKeyboardButton(text='⏩', callback_data=f'hyear2_{3}')])
 
-        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)  # Use inline_keyboard directly
-
     elif int(page) == 3:
-
         for i in range(current_year - 45, current_year - 62, -1):
-
             row.append(InlineKeyboardButton(text=f'{i}', callback_data=f'hyear_{i}_'))
-
             if len(row) == 4:
                 inline_keyboard.append(row)
-
                 row = []
-
         if row:
             inline_keyboard.append(row)
 
+        # Navigation buttons for page 3
         inline_keyboard.append([InlineKeyboardButton(text='⏪', callback_data=f'hyear2_{2}'),
                                 InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_'),
                                 InlineKeyboardButton(text='⏩', callback_data=f'hyear2_{1}')])
-        # inline_keyboard.append([
-        #
-        # InlineKeyboardButton(text='⏪', callback_data=f'hyear2_{2}'),
-        #
-        # InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_')
-        #
-        # ])
 
-        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
-
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
     return inline_keyboard
 
 
 async def hexperience(language, data):
     if data == 'experience':
         text = {'uz': ['hexperience_yes_.✅ Ha', 'hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'type_.🔙 Orqaga'],
-                'ru': ['hexperience_yes_.✅ Ha', 'hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'type_.🔙 Orqaga'],
-                'en': ['hexperience_yes_.✅ Ha', 'hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'type_.🔙 Orqaga'], }
+                'ru': ['hexperience_yes_.✅ Да', 'hexperience_no_.❌ Нет', 'menu_.🏠 Главное меню', 'type_.🔙 Назад'],
+                'en': ['hexperience_yes_.✅ Yes', 'hexperience_no_.❌ No', 'menu_.🏠 Main menu', 'type_.🔙 Back']}
     else:
         text = {
             'uz': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'],
-            'ru': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'],
-            'en': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'], }
+            'ru': ['is/certificate_yes_.✅ Да', 'is/hexperience_no_.❌ Нет', 'menu_.🏠 Главное меню', 'yhire_.🔙 Назад'],
+            'en': ['is/certificate_yes_.✅ Yes', 'is/hexperience_no_.❌ No', 'menu_.🏠 Main menu', 'yhire_.🔙 Back']}
+
     inline_button = []
     row = []
     for i in text.get(language):
@@ -920,14 +998,16 @@ async def hexperience(language, data):
             row = []
     if row:
         inline_button.append(row)
+
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
 
 async def conifim_hire(language):
     text = {'uz': ['cconifim_.✅ Hammasi tog\'ri', 'hire_.♻️ Boshqatan', 'menu_.🏠 Bosh menu'],
-            'ru': ['cconifim_.✅ Hammasi tog\'ri', 'hire_.♻️ Boshqatan', 'menu_.🏠 Bosh menu'],
-            'en': ['cconifim_.✅ Hammasi tog\'ri', 'hire_.♻️ Boshqatan', 'menu_.🏠 Bosh menu']}
+            'ru': ['cconifim_.✅ Все верно', 'hire_.♻️ Еще раз', 'menu_.🏠 Главное меню'],
+            'en': ['cconifim_.✅ Everything is correct', 'hire_.♻️ Try again', 'menu_.🏠 Main menu']}
+
     inline_button = []
     row = []
     for i in text.get(language):
@@ -937,10 +1017,42 @@ async def conifim_hire(language):
             row = []
     if row:
         inline_button.append(row)
+
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
 
+async def compilationkb(language):
+    inline_keyboard = []
+    row = []
+    text = {
+        'uz': ['c_teacher_mt.👨‍🏫 (MT) O‘qituvchi', 'c_teacher_vt.🎞 (VT) O‘qituvchi', 'c_teacher_asistent. Assistent',
+               'menu_.🏠 Bosh menu'],
+        'ru': ['c_teacher_mt.👨‍🏫 (MT) Учитель', 'c_teacher_vt.🎞 (VT) Учитель', 'c_teacher_asistent. Ассистент',
+               'menu_.🏠 Главное меню'],
+        'en': ['c_teacher_mt.👨‍🏫 (MT) Teacher', 'c_teacher_vt.🎞 (VT) Teacher', 'c_teacher_asistent. Assistant',
+               'menu_.🏠 Main menu']}
+
+    for i in text.get(language):
+        row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}'))
+        if len(row) == 3:
+            inline_keyboard.append(row)
+            row = []
+    if row:
+        inline_keyboard.append(row)
+
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+    return inline_keyboard
+
+
+async def delete_result_en(language,id):
+    inline_button = []
+    text= {
+        'uz':[f'delete_result_{id}.O\'chirish']
+    }
+    inline_button.append([InlineKeyboardButton(text=text[0].get(language).split('.')[1], callback_data=text[0].get(language).split('.')[1])])
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
 # ---------------------------------------functions ---------------------------------------------------------------------#
 
 
@@ -1214,7 +1326,7 @@ async def number(message: Message, state: FSMContext):
         await state.set_state(Register.start)
         await delete_previous_messages(message.message_id, message.from_user.id)
     if message.text:
-        if message.text[:2] == '⬅️':
+        if message.text[:1] == '🔙':
             match language:
                 case 'uz':
                     await bot.send_message(chat_id=message.from_user.id,
@@ -1233,7 +1345,6 @@ async def number(message: Message, state: FSMContext):
             await bot.delete_message(message_id=message.message_id - 1, chat_id=message.from_user.id)
             await delete_previous_messages(message.message_id, message.from_user.id)
             return
-
         if not message.text[1:].isdigit() or 9 <= len(str(message.text)) >= 13:
             await state.set_state(Register.number)
             match language:
@@ -1254,6 +1365,19 @@ async def number(message: Message, state: FSMContext):
             await state.update_data(number=message.text)
         else:
             await state.update_data(number=f'+{message.text}')
+
+        match language:
+            case 'uz':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await gender(language, False))
+            case 'ru':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await gender(language, False))
+            case 'en':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await gender(language, False))
+        await state.set_state(Register.start)
+        await delete_previous_messages(message.message_id, message.from_user.id)
 
 
 @dp.callback_query(F.data.startswith('Register_number_'))
@@ -1372,8 +1496,8 @@ async def month_callback(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(tg_id=callback_query.from_user.id)
     month = callback_query.data.split('_')[1]
     month_name = callback_query.data.split('_')[2][2:]
-    await state.update_data(fake_month=month)
-    await state.update_data(month=month_name)
+    await state.update_data(fake_month=month_name)
+    await state.update_data(month=month)
     years = await state.get_data()
     year = years.get('year')
     match language:
@@ -1389,7 +1513,11 @@ async def month_callback(callback_query: CallbackQuery, state: FSMContext):
             await bot.edit_message_text(message_id=callback_query.message.message_id,
                                         chat_id=callback_query.from_user.id, text=f'Choose the day for {month_name}:',
                                         reply_markup=await days(month, year))
-    await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
+    try:
+        await bot.delete_message(message_id=callback_query.message.message_id - 1, chat_id=callback_query.from_user.id)
+        await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
+    except TelegramBadRequest:
+        pass
 
 
 @dp.callback_query(F.data.startswith('day_'))
@@ -1421,23 +1549,23 @@ async def day_callback(callback_query: CallbackQuery, state: FSMContext):
                 await bot.edit_message_text(message_id=callback_query.message.message_id,
                                             text=f'{data.capitalize() if data != "ielt" else data.upper() + "S"} oyi uchun berilgan ozingizga mos vaqtni tanlang',
                                             chat_id=callback_query.from_user.id,
-                                            reply_markup=await time_en(language, day))
+                                            reply_markup=await time_en(language, day, 'other'))
             case 'ru':
                 await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                            text=f'{data} uchun berilgan vaqtni tanlang',
+                                            text=f'{data.capitalize() if data != "ielt" else data.upper() + "S"} oyi uchun berilgan ozingizga mos vaqtni tanlang',
                                             chat_id=callback_query.from_user.id,
-                                            reply_markup=await time_en(language, day))
+                                            reply_markup=await time_en(language, day, 'other'))
             case 'en':
                 await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                            text=f'{data} uchun berilgan vaqtni tanlang',
+                                            text=f'{data.capitalize() if data != "ielt" else data.upper() + "S"} oyi uchun berilgan ozingizga mos vaqtni tanlang',
                                             chat_id=callback_query.from_user.id,
-                                            reply_markup=await time_en(language, day))
+                                            reply_markup=await time_en(language, day, 'other'))
     await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
 
 
 @dp.callback_query(F.data.startswith('level_'))
 async def level(callback_query: CallbackQuery, state: FSMContext):
-    data = callback_query.data.split('_')[1]
+    data = callback_query.data.split('_')[1].replace('.', '')
     await state.update_data(level=data)
     days = await state.get_data()
     course = days.get('course')
@@ -1447,36 +1575,40 @@ async def level(callback_query: CallbackQuery, state: FSMContext):
         case 'uz':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
                                         text=f'{data.capitalize() if data != "ielt" else data.upper() + "S"} oyi uchun berilgan ozingizga mos vaqtni tanlang',
-                                        chat_id=callback_query.from_user.id, reply_markup=await time_en(language, day))
+                                        chat_id=callback_query.from_user.id,
+                                        reply_markup=await time_en(language, day, course))
         case 'ru':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                        text=f'{data} uchun berilgan vaqtni tanlang',
-                                        chat_id=callback_query.from_user.id, reply_markup=await time_en(language, day))
+                                        text=f'{data.capitalize() if data != "ielt" else data.upper() + "S"} oyi uchun berilgan ozingizga mos vaqtni tanlang',
+                                        chat_id=callback_query.from_user.id,
+                                        reply_markup=await time_en(language, day, course))
         case 'en':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                        text=f'{data} uchun berilgan vaqtni tanlang',
-                                        chat_id=callback_query.from_user.id, reply_markup=await time_en(language, day))
+                                        text=f'{data.capitalize() if data != "ielt" else data.upper() + "S"} oyi uchun berilgan ozingizga mos vaqtni tanlang',
+                                        chat_id=callback_query.from_user.id,
+                                        reply_markup=await time_en(language, day, course))
     await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
 
 
 @dp.callback_query(F.data.startswith('more.'))
 async def level(callback_query: CallbackQuery, state: FSMContext):
     days = await state.get_data()
-    day = days.get('day')
+    day = days.get('month')
+    month_name = days.get('fake_month')
     language = await get_user_language(callback_query.from_user.id)
     match language:
         case 'ru':
             await bot.edit_message_text(message_id=callback_query.message.message_id, text='Kurs darajasini tanlang',
                                         chat_id=callback_query.from_user.id,
-                                        reply_markup=await level_more(language, day))
+                                        reply_markup=await level_more(language, day, month_name))
         case 'en':
             await bot.edit_message_text(message_id=callback_query.message.message_id, text='Kurs darajasini tanlang',
                                         chat_id=callback_query.from_user.id,
-                                        reply_markup=await level_more(language, day))
+                                        reply_markup=await level_more(language, day, month_name))
         case 'uz':
             await bot.edit_message_text(message_id=callback_query.message.message_id, text='Kurs darajasini tanlang',
                                         chat_id=callback_query.from_user.id,
-                                        reply_markup=await level_more(language, day))
+                                        reply_markup=await level_more(language, day, month_name))
     await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
 
 
@@ -1533,10 +1665,12 @@ async def confirm(callback_query: CallbackQuery, state: FSMContext):
     course = data.get('course')
     number = data.get('number')
     gender = data.get('fake_gender')
+    gender2 = data.get('gender')
     fullname = data.get('fullname')
     level = data.get('level')
     day = data.get('day')
     year = data.get('year')
+    time = data.get('time')
     month = data.get('month')
     born_year = f'{day:02}/{month}/{year}'
     if callback_query.from_user.username:
@@ -1544,12 +1678,37 @@ async def confirm(callback_query: CallbackQuery, state: FSMContext):
                        level=level,  # Pass the correct value here
                        course_time=time1,  # Pass the correct value here
                        user_gender=gender, born_year=born_year)
+        await bot.send_message(chat_id=await call_centre(),
+                               text=(f'#student\n❗️❗️❗️❗️ Telefon qilish kerak Smart English ❗️❗️❗️❗️❗️\n\n'
+                                     f'To\'liq ismi: {fullname}\n'
+                                     f'Telegram foydalanuvchi nomi: @{callback_query.from_user.username}\n'
+                                     f'Telefon raqami: {number}\n'
+                                     f'Jinsi: {gender}\n'
+                                     f'Tug\'ilgan yili: {year} yil\n'
+                                     f'Tug\'ilgan oyi: {month} oy\n'
+                                     f'Kurs darajasi: {level if level else 'Kurs mavjud emas'}\n'
+                                     f'Tug\'ilgan kuni: {day} kun\n'
+                                     f'Kurs nomi: {course}\n'
+                                     f'Kurs vaqti: {time}'),
+                               reply_markup=await call(number, callback_query.from_user.id))
     else:
         # Register the user with the correct data
         await register(tg_id=callback_query.from_user.id, name=fullname, phone_number=number, course=course,
                        level=level,  # Pass the correct value here
                        course_time=time1,  # Pass the correct value here
-                       user_gender=gender, born_year=born_year)
+                       user_gender=gender2, born_year=born_year)
+        await bot.send_message(chat_id=await call_centre(),
+                               text=(f'❗️❗️❗️❗️ Telefon qilish kerak Smart English ❗️❗️❗️❗️❗️\n\n'
+                                     f'To\'liq ismi: {fullname}\n'
+                                     f'Telefon raqami: {number}\n'
+                                     f'Jinsi: {gender}\n'
+                                     f'Tug\'ilgan yili: {year} yil\n'
+                                     f'Tug\'ilgan oyi: {month} oy\n'
+                                     f'Kurs darajasi: {level if level else 'Kurs mavjud emas'}\n'
+                                     f'Tug\'ilgan kuni: {day} kun\n'
+                                     f'Kurs nomi: {course}\n'
+                                     f'Kurs vaqti: {time}'),
+                               reply_markup=await call(number, callback_query.from_user.id))
     match language:
         case 'uz':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
@@ -1681,6 +1840,7 @@ async def add_result(message: Message, state: FSMContext):
     await state.set_state(Certificate.fullname)
     try:
         await bot.delete_message(message_id=message.message_id, chat_id=message.from_user.id)
+        await bot.delete_message(message_id=message.message_id - 1, chat_id=message.from_user.id)
         await delete_previous_messages(message.message_id, message.from_user.id)
     except TelegramBadRequest:
         pass
@@ -2125,10 +2285,10 @@ async def is_certificate2(callback_query: CallbackQuery, state: FSMContext):
         name = data.get('name')
         text2 = {'uz': (f"👤 Ism sharifingiz: {name}\n🗓️ Tug'ilgan yilingiz: {data.get('year')}\n"
                         f"🗂️ Tanlagan kasbingiz: {data.get('state_fake')}\n🏅 Tajribangiz: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
-            'ru': (f"👤 Ваше имя: {name}\n🗓️ Год вашего рождения: {data.get('year')}\n"
-                   f"🗂️ Ваша выбранная профессия: {data.get('state_fake')}\n🏅 Ваш опыт: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
-            'en': (f"👤 Your full name: {name}\n🗓️ Year of birth: {data.get('year')}\n"
-                   f"🗂️ Chosen profession: {data.get('state_fake')}\n🏅 Experience: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}")}
+                 'ru': (f"👤 Ваше имя: {name}\n🗓️ Год вашего рождения: {data.get('year')}\n"
+                        f"🗂️ Ваша выбранная профессия: {data.get('state_fake')}\n🏅 Ваш опыт: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
+                 'en': (f"👤 Your full name: {name}\n🗓️ Year of birth: {data.get('year')}\n"
+                        f"🗂️ Chosen profession: {data.get('state_fake')}\n🏅 Experience: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}")}
         await bot.edit_message_text(message_id=callback_query.message.message_id, text=text2.get(language),
                                     chat_id=callback_query.from_user.id, reply_markup=await conifim_hire(language))
 
@@ -2172,10 +2332,10 @@ async def hire_images3(message: Message, state: FSMContext):
     # Prepare the summary text to send to the user
     text = {'uz': (f"👤 Ism sharifingiz: {name}\n🗓️ Tug'ilgan yilingiz: {data.get('year')}\n"
                    f"🗂️ Tanlagan kasbingiz: {data.get('state_fake')}\n🏅 Tajribangiz: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
-        'ru': (f"👤 Ваше имя: {name}\n🗓️ Год вашего рождения: {data.get('year')}\n"
-               f"🗂️ Ваша выбранная профессия: {data.get('state_fake')}\n🏅 Ваш опыт: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
-        'en': (f"👤 Your full name: {name}\n🗓️ Year of birth: {data.get('year')}\n"
-               f"🗂️ Chosen profession: {data.get('state_fake')}\n🏅 Experience: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}")}
+            'ru': (f"👤 Ваше имя: {name}\n🗓️ Год вашего рождения: {data.get('year')}\n"
+                   f"🗂️ Ваша выбранная профессия: {data.get('state_fake')}\n🏅 Ваш опыт: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
+            'en': (f"👤 Your full name: {name}\n🗓️ Year of birth: {data.get('year')}\n"
+                   f"🗂️ Chosen profession: {data.get('state_fake')}\n🏅 Experience: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}")}
 
     # Send the photo and user details to the user
     try:
@@ -2197,9 +2357,9 @@ async def hire_images3(message: Message, state: FSMContext):
 @dp.callback_query(F.data.startswith('cconifim_'))
 async def confirm3(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(callback_query.from_user.id)
-    text = {'uz': 'Agar siz bizga kerek bolsangiz biz sizga bot orqali aloqaga chiqmiz',
-        'ru': 'Agar siz bizga kerek bolsangiz biz sizga bot orqali aloqaga chiqmiz',
-        'en': 'Agar siz bizga kerek bolsangiz biz sizga bot orqali aloqaga chiqmiz', }
+    text = {'uz': "📲 Agar siz bizga kerak bo'lsangiz, biz sizga 🤖 bot orqali aloqaga chiqamiz.",
+            'ru': "📲 Если вы нам нужны, мы свяжемся с вами через 🤖 бота.",
+            'en': "📲 If you need us, we will contact you via 🤖 the bot.", }
     text2 = {'uz': '🏠 Bosh menu', 'ru': '🏠 Bosh menu', 'en': '🏠 Bosh menu', }
     await bot.send_message(chat_id=callback_query.message.chat.id, text=text.get(language),
                            reply_markup=await InlineKeyboardMarkup(inline_keyboard=[
@@ -2210,6 +2370,107 @@ async def confirm3(callback_query: CallbackQuery, state: FSMContext):
         await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
     except TelegramBadRequest:
         pass
+
+
+# ------------------------------------ Complain ------------------------------------------------------------------------#
+
+@dp.callback_query(F.data.startswith('complain_'))
+async def complain(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    text = {'uz': "🛑 Kimdan shikoyatingiz bor? 🕵️‍♂️ Ma'lumotlaringiz sir saqalanadi.",
+            'ru': "🛑 На кого у вас жалоба? 🕵️‍♂️ Ваши данные останутся конфиденциальными.",
+            'en': "🛑 Who are you complaining about? 🕵️‍♂️ Your information will remain confidential.", }
+
+    await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
+                                text=text.get(language), reply_markup=await compilationkb(language))
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+
+
+@dp.callback_query(F.data.startswith('c_teacher_'))
+async def complain_teacher(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    data = callback_query.data.split('_')[2]
+    await state.update_data(teacher_type=data)
+    text = {'uz': f"📋 {data} O‘qituvchingizning ismini kiriting", 'ru': f"📋 {data} Введите имя вашего учителя",
+            'en': f"📋 {data} Please enter your teacher’s name", }
+
+    await bot.send_message(text=text.get(language), chat_id=callback_query.from_user.id)
+    await state.set_state(Complain.teacher_name)
+
+
+@dp.message(Complain.teacher_name)
+async def complain_teacher(message: Message, state: FSMContext):
+    language = await get_user_language(message.from_user.id)
+    a = False
+    for i in range(len(message.text.replace(' ', ''))):
+        if message.text.replace(' ', '')[i].isdigit():
+            a = True
+    if a:
+        text2 = {'uz': '📛 Iltimos, o‘qituvchingiz ismini kiriting', 'ru': '📛 Пожалуйста, введите имя вашего учителя',
+                 'en': '📛 Please enter your teacher’s name', }
+
+        await message.answer(text=text2.get(language))
+        await bot.delete_message(message_id=message.message_id - 1, chat_id=message.from_user.id)
+        await state.set_state(Complain.message)
+        return
+    text = {'uz': '✍️ Shikoyatingizni yozing', 'ru': '✍️ Напишите свою жалобу', 'en': '✍️ Write your complaint', }
+
+    await state.update_data(teacher_name=message.text)
+    await message.answer(text=text.get(language))
+    await delete_previous_messages(message.message_id, message.from_user.id)
+    await state.set_state(Complain.message)
+
+
+@dp.message(Complain.message)
+async def Complains_messages(message: Message, state: FSMContext):
+    language = await get_user_language(message.from_user.id)
+    await state.update_data(message=message.text)
+    data = await state.get_data()
+    teacher_name = data.get('teacher_name')
+    teacher = data.get('teacher_type')
+    text = {'uz': (f"⚠️ Siz {teacher_name} ({teacher.capitalize()})ga shikoyat yubordingiz:\n"
+                   f"💬 {message.text}"), 'ru': (f"⚠️ Вы отправили жалобу на {teacher_name} ({teacher.capitalize()}):\n"
+                                                f"💬 {message.text}"),
+            'en': (f"⚠️ You have sent a complaint to {teacher_name} ({teacher.capitalize()}):\n"
+                   f"💬 {message.text}")}
+
+    await message.answer(text=text.get(language), reply_markup=await kb_complain(language))
+
+
+@dp.callback_query(F.data.startswith('s_complain_'))
+async def complain32(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    data = await state.get_data()
+    teacher_name = data.get('teacher_name')
+    teacher = data.get('teacher_type')
+    message = data.get('message')
+    text2 = {
+        'uz': 'Sizning xabaringiz @SEOM2016 managerga yuborildi.\nSizning xabaringiz 💯 xavfsiz va sizning kimligingiz sir saqlanadi.',
+        'ru': 'Ваше сообщение отправлено @SEOM2016 менеджеру.\nВаше сообщение 💯 безопасно, и ваша личность будет сохранена в тайне.',
+        'en': 'Your message has been sent to the @SEOM2016 manager.\nYour message is 💯 safe, and your identity will remain confidential.'}
+    text = {'uz': ("✅ Sizning xabaringiz @SEOM2016 managerga yuborildi.\n"
+                   "🔒 Sizning xabaringiz 💯 xavfsiz va 🕵️‍♂️ sizning kimligingiz sir saqlanadi."),
+            'ru': ("✅ Ваше сообщение отправлено @SEOM2016 менеджеру.\n"
+                   "🔒 Ваше сообщение 💯 безопасно, и 🕵️‍♂️ ваша личность будет сохранена в тайне."),
+            'en': ("✅ Your message has been sent to the @SEOM2016 manager.\n"
+                   "🔒 Your message is 💯 safe, and 🕵️‍♂️ your identity will remain confidential.")}
+    await bot.send_message(chat_id=callback_query.from_user.id, text=text.get(language),
+                           reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                               [InlineKeyboardButton(text=text2.get(language), callback_data='menu_')]]))
+    text3 = {
+        'uz': (f"🛑 #shikoyat {'@' + callback_query.from_user.username if callback_query.from_user.username else ''}\n\n"
+               f"👨‍🏫 {teacher.capitalize()} {teacher_name.capitalize()} ga\n"
+               f"📋 Shikoyat:\n🗣️ {message}"),
+        'ru': (f"🛑 #жалоба {'@' + callback_query.from_user.username if callback_query.from_user.username else ''}\n\n"
+               f"👨‍🏫 {teacher.capitalize()} {teacher_name.capitalize()} - учителю\n"
+               f"📋 Жалоба:\n🗣️ {message}"), 'en': (
+            f"🛑 #complaint {'@' + callback_query.from_user.username if callback_query.from_user.username else ''}\n\n"
+            f"👨‍🏫 Complaint against {teacher.capitalize()} {teacher_name.capitalize()}:\n"
+            f"📋 Complaint:\n🗣️ {message}")}
+    await bot.send_message(chat_id=await manager(), text=text3.get(language))
+    await state.set_state(Complain.start)
+    await state.clear()
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
 
 
 # ------------------------------------Middleware------------------------------------------------------------------------#
