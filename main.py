@@ -1,9 +1,9 @@
 import asyncio
 import os
+import traceback
 from datetime import datetime
 from time import sleep, localtime
 from typing import Callable, Dict, Any, Awaitable
-
 from aiogram import Bot, Dispatcher, F, BaseMiddleware
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart, Command
@@ -40,7 +40,7 @@ class User(Base):
     tg_number = Column(Integer, unique=True, nullable=True)
     gender = Column(String, nullable=True)
     born_year = Column(Integer, nullable=True)
-    language = Column(String, nullable=False)
+    language = Column(String, nullable=True)
     role = Column(String, nullable=False, default='User')
     registered = Column(Boolean, nullable=False, default=False)
     register_time = Column(DateTime, nullable=True)
@@ -71,6 +71,7 @@ class Results_English(Base):
     listening = Column(String, nullable=False)
     Overall_Band = Column(String, nullable=False)
     image = Column(String, nullable=False)
+    is_deleted = Column(String, default='False',nullable=True)  # Soft delete flag
     register_time = Column(DateTime, nullable=True)
 
 
@@ -178,14 +179,12 @@ async def get_user_by_tg_id(tg_id):
         user = result.scalars().first()
         return user
 
-
-async def get_results_en():
+async def get_result_english(id):
     async with async_session() as session:
-        stmt = select(Results_English)
-        result = await session.execute(stmt)
-        user_language = result.scalar_one_or_none()
-        return user_language
-
+            stmt = select(Results_English).where(Results_English.id==id)  # Check for the specific tg_id
+            result = await session.execute(stmt)
+            user_role = result.all()  # Fetch the role or None if not found
+            return user_role
 
 async def manager():
     async with async_session() as session:
@@ -197,11 +196,40 @@ async def manager():
 
 async def all_users():
     async with async_session() as session:
-        stmt = select(User.tg_id)  # Selects all tg_id values from the User table
+        stmt = select(User).where(User.role != 'Manager' or User.role != 'Admin')
         result = await session.execute(stmt)  # Executes the query
         user_ids = result.scalars().all()  # Fetches all tg_ids as a list
         return user_ids  # Returns the list of Telegram IDs
 
+async def get_user_role(tg_id):
+    async with async_session() as session:
+        stmt = select(User.role).where(User.tg_id == tg_id )  # Check for the specific tg_id
+        result = await session.execute(stmt)
+        user_role = result.scalar_one_or_none()  # Fetch the role or None if not found
+        return user_role
+
+
+async def delete_results_en(tg_id):
+    async with async_session() as session:
+        # Fetch the entire object instead of just one column
+        stmt = select(Results_English).where(Results_English.id == tg_id)
+        result = await session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if user:
+            user.is_deleted = True  # Set the attribute (use a boolean, not a string)
+            await session.commit()  # Save changes to the database
+
+
+async def change_user_language(tg_id,language):
+    async with async_session() as session:
+        stmt = select(User).where(User.tg_id == tg_id)
+        result = await session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if user:
+            user.language = language  # Set the attribute (use a boolean, not a string)
+            await session.commit()  # Save changes to the database
 
 # -------------------------------------time-----------------------------------------------------------------------------#
 current_time = localtime()
@@ -1022,20 +1050,71 @@ async def conifim_hire(language):
     return inline_keyboard
 
 
+async def change_user_role(language, data):
+    inline_button = []
+    row = []
+    text = {
+        'uz': [
+            'user_role_caller.📋 Registrator',  # Registrator - 📋 (Clipboard)
+            'user_role_admin.🛠️ Admin',  # Admin - 🛠️ (Tools)
+            'user_role_user.👤 Foydalanuvchi',  # User - 👤 (User)
+            'user_role_manager.👨‍💼 Manager'  # Manager - 👨‍💼 (Office worker)
+        ],
+        'ru': [
+            'user_role_caller.📋 Регистратор',  # Registrator - 📋 (Clipboard)
+            'user_role_admin.🛠️ Админ',  # Admin - 🛠️ (Tools)
+            'user_role_user.👤 Пользователь',  # User - 👤 (User)
+            'user_role_manager.👨‍💼 Менеджер'  # Manager - 👨‍💼 (Office worker)
+        ],
+        'en': [
+            'user_role_caller.📋 Registrator',  # Registrator - 📋 (Clipboard)
+            'user_role_admin.🛠️ Admin',  # Admin - 🛠️ (Tools)
+            'user_role_user.👤 User',  # User - 👤 (User)
+            'user_role_manager.👨‍💼 Manager'  # Manager - 👨‍💼 (Office worker)
+        ]
+    }
+
+    # Iterate through the list of roles for the given language
+    for i in text.get(language, []):  # Get the roles for the selected language
+        role_name = i.split('.')[0]  # Get the role name before the dot
+        if role_name.lower() == data.lower():  # Compare it with the provided 'data'
+            text[language].remove(i)
+        row.append(InlineKeyboardButton(text=f'{i.split('.')[1]}', callback_data=f'{i.split('.')[0]}'))
+        inline_button.append(row)
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+
+
 async def compilationkb(language):
     inline_keyboard = []
     row = []
     text = {
-        'uz': ['c_teacher_mt.👨‍🏫 (MT) O‘qituvchi', 'c_teacher_vt.🎞 (VT) O‘qituvchi', 'c_teacher_asistent. Assistent',
-               'menu_.🏠 Bosh menu'],
-        'ru': ['c_teacher_mt.👨‍🏫 (MT) Учитель', 'c_teacher_vt.🎞 (VT) Учитель', 'c_teacher_asistent. Ассистент',
-               'menu_.🏠 Главное меню'],
-        'en': ['c_teacher_mt.👨‍🏫 (MT) Teacher', 'c_teacher_vt.🎞 (VT) Teacher', 'c_teacher_asistent. Assistant',
-               'menu_.🏠 Main menu']}
+        'uz': [
+            'c_teacher_main.🧑‍🏫 (Main) O‘qituvchi',  # Main Teacher - 🧑‍🏫 (Teacher)
+            'c_teacher_assistant.🧑‍💼 Assistent',  # Assistant - 🧑‍💼 (Office worker)
+            'c_teacher_examiner.📝 Imtihon oluvchi',  # Examiner - 📝 (Writing)
+            'c_teacher_video.🎞 (Video) O‘qituvchi',  # Video Teacher - 🎞 (Movie)
+            'menu_.🏠 Bosh menu'  # Main Menu - 🏠 (House)
+        ],
+        'ru': [
+            'c_teacher_main.🧑‍🏫 (Main) Учитель',  # Main Teacher - 🧑‍🏫 (Teacher)
+            'c_teacher_assistant.🧑‍💼 Ассистент',  # Assistant - 🧑‍💼 (Office worker)
+            'c_teacher_examiner.📝 Экзаменатор',  # Examiner - 📝 (Writing)
+            'c_teacher_video.🎞 (Video) Учитель',  # Video Teacher - 🎞 (Movie)
+            'menu_.🏠 Главное меню'  # Main Menu - 🏠 (House)
+        ],
+        'en': [
+            'c_teacher_main.🧑‍🏫 (Main) Teacher',  # Main Teacher - 🧑‍🏫 (Teacher)
+            'c_teacher_assistant.🧑‍💼 Assistant',  # Assistant - 🧑‍💼 (Office worker)
+            'c_teacher_examiner.📝 Examiner',  # Examiner - 📝 (Writing)
+            'c_teacher_video.🎞 (Video) Teacher',  # Video Teacher - 🎞 (Movie)
+            'menu_.🏠 Main menu'  # Main Menu - 🏠 (House)
+        ]
+    }
 
     for i in text.get(language):
         row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}'))
-        if len(row) == 3:
+        if len(row) == 4:
             inline_keyboard.append(row)
             row = []
     if row:
@@ -1045,14 +1124,35 @@ async def compilationkb(language):
     return inline_keyboard
 
 
-async def delete_result_en(language,id):
+async def delete_result_en(language: str,id,message_id):
     inline_button = []
-    text= {
-        'uz':[f'delete_result_{id}.O\'chirish']
+    text = {
+        'uz': [f'delete_result_{id}_{message_id}.🗑️ O‘chirish'],  # Uzbek: "O‘chirish" (Delete)
+        'ru': [f'delete_result_{id}_{message_id}.🗑️ Удалить'],  # Russian: "Удалить" (Delete)
+        'en': [f'delete_result_{id}_{message_id}.🗑️ Delete']  # English: "Delete"
     }
-    inline_button.append([InlineKeyboardButton(text=text[0].get(language).split('.')[1], callback_data=text[0].get(language).split('.')[1])])
+
+    for i in text.get(language):
+        inline_button.append([InlineKeyboardButton(text=f"{i.split('.')[1]}", callback_data=i.split('.')[0])])
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
+
+
+async def keyboard(language,data):
+        inline_button = []
+        row = []
+        text2 = {
+            'uz': [f'yes_delete_{data}.✅ Ha, o‘chir', f'return_result_{data}.❌ Yo‘q'],
+            # Uzbek: "Ha, o‘chir" (Yes, delete) / "Yo‘q" (No)
+            'ru': [f'yes_delete_{data}.✅ Да, удалить', f'return_result_{data}.❌ Нет'],
+            # Russian: "Да, удалить" (Yes, delete) / "Нет" (No)
+            'en': [f'yes_delete_{data}.✅ Yes, delete', f'return_result_{data}.❌ No']  # English: "Yes, delete" / "No"
+        }
+        for i in text2.get(language):
+            row.append(InlineKeyboardButton(text=f"{i.split('.')[1]}",callback_data=f"{i.split('.')[0]}"))
+        inline_button.append(row)
+        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+        return inline_keyboard
 # ---------------------------------------functions ---------------------------------------------------------------------#
 
 
@@ -1111,56 +1211,58 @@ async def download_image2(bot: Bot, message: Message, name: str, state: str) -> 
         return None
 
 
-async def send_certificate(bot: Bot, chat_id: int, callback_query):
+async def image_send_edit_to_delete(id):
+    async with async_session() as session:
+        stmt = select(Results_English).where(Results_English.id == id)
+        result = await session.execute(stmt)
+        user_language = result.scalar()
+        return user_language
+
+
+async def send_certificate(bot: Bot, chat_id: int, callback_query,langauge):
     async with async_session() as session:
         try:
-            # Fetch the most recent certificate
-            result = await session.execute(select(Results_English).order_by(Results_English.id.desc())
-                                           # Limit to the latest
-                                           )
+            result = await session.execute(select(Results_English).order_by(Results_English.id.desc()))
             certificates = result.scalars().all()
-
             if not certificates:
                 await bot.send_message(chat_id, "No certificate found.")
                 return
             for certificate in certificates:
-                # Prepare the message text for each certificate
-                text = (f"📋 Certificate Information:\n\n"
+                if certificate.is_deleted != '1':
+                    text = (f"📋 Certificate Information:\n\n"
                         f"👤 Full Name: {certificate.fullname}\n"
                         f"🏅 Band Score: {certificate.Overall_Band}\n\n"
                         f"🗣 Speaking: {certificate.speaking}\n"
                         f"✍️ Writing: {certificate.writing}\n"
                         f"👂 Listening: {certificate.listening}\n"
                         f"📖 Reading: {certificate.reading}\n\n"
-                        f"✨Smart English\n<a href='http://instagram.com/smart.english.official'>Instagram</a>|<a href='https://t.me/SMARTENGLISH2016'>Telegram</a>|<a href='https://www.youtube.com/channel/UCu8wC4sBtsVK6befrNuN7bw'>You Tube</a>|<a href='https://t.me/Smart_Food_official'>Smart Food</a>|<a href='https://t.me/xusanboyman200'>Programmer</a>"
+                        f"✨Smart English\n<a href='http://instagram.com/smart.english.official'>Instagram</a>|<a href='https://t.me/SMARTENGLISH2016'>Telegram</a>|<a href='https://www.youtube.com/channel/UCu8wC4sBtsVK6befrNuN7bw'>YouTube</a>|<a href='https://t.me/Smart_Food_official'>Smart Food</a>|<a href='https://t.me/xusanboyman200'>Programmer</a>")
+                    image_path = certificate.image
 
-                        )
+                    if os.path.exists(image_path):
+                        photo = FSInputFile(image_path)
+                        user_role = await get_user_role(callback_query.from_user.id)
+                        if user_role == 'User':
+                            delete_button = await delete_result_en(langauge, certificate.id,callback_query.message.message_id)
+                            await bot.send_photo(chat_id=chat_id, photo=photo, caption=text, parse_mode='HTML', reply_markup=delete_button)
+                        else:
+                            await bot.send_photo(chat_id=chat_id, photo=photo, caption=text, parse_mode='HTML')
 
-                # Get the certificate image path
-                image_path = certificate.image
+                    else:
+                     await bot.send_message(chat_id, f"Certificate image not found for {certificate.fullname}.",
+                                               parse_mode='HTML')
 
-                # Check if the image exists
-                if os.path.exists(image_path):
-                    photo = FSInputFile(image_path)
-                    await bot.send_photo(chat_id=chat_id, photo=photo, caption=text, parse_mode='HTML')
-                else:
-                    await bot.send_message(chat_id, f"Certificate image not found for {certificate.fullname}.",
-                                           parse_mode='HTML')
-            await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
 
             language = await get_user_language(tg_id=callback_query.from_user.id)
-            user_id = callback_query.from_user.id
-
             language_map = {'ru': 'ru', 'en': 'en', 'uz': 'Bosh menu'}
-
-            # Use the language map to determine the appropriate response text
+            user_id = callback_query.from_user.id
             await bot.send_message(text=language_map.get(language, 'en'), chat_id=user_id,
-                                   reply_markup=await home(language))
-
+                                       reply_markup=await home(language))
 
         except Exception as e:
-            await bot.send_message(chat_id, f"An error occurred: {str(e)}")
 
+            error_message = traceback.format_exc()  # Get the full traceback
+            await bot.send_message(chat_id, f"An error occurred:\n{error_message}")
 
 # -----------------------------------------Messages---------------------------------------------------------------------#
 @dp.message(CommandStart())
@@ -1216,11 +1318,15 @@ async def language(callback_query: CallbackQuery):
         await add_user(callback_query.from_user.id, callback_query.from_user.username,
                        callback_query.from_user.full_name)
     language = callback_query.data.split('_')[1]
-    await set_user_language(tg_id=callback_query.from_user.id, language=language)
+    await change_user_language(tg_id=callback_query.from_user.id, language=language)
     await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
                                 text={"ru": "ru", "en": "en", "uz": "Bosh menu"}.get(language),
                                 reply_markup=await home(language))
-    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    try:
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id-1)
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    except TelegramBadRequest as e:
+        pass
     return
 
 
@@ -2029,8 +2135,12 @@ async def image(message: Message, state: FSMContext):
     # Send the photo with the certificate information
     await bot.send_photo(chat_id=message.from_user.id, photo=file_id,  # Use the file_id stored in state
                          caption=text, reply_markup=await confirmt(language, True), parse_mode='HTML')
-    await delete_previous_messages(message.message_id, message.from_user.id)
-
+    try:
+        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id)
+        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id-1)
+        await delete_previous_messages(message.message_id, message.from_user.id)
+    except TelegramBadRequest:
+        pass
 
 @dp.callback_query(F.data.startswith('state_confirm_'))
 async def stagedconifer(callback_query: CallbackQuery, state: FSMContext):
@@ -2053,27 +2163,26 @@ async def stagedconifer(callback_query: CallbackQuery, state: FSMContext):
     await register_result_en(fullname, writing, listening, reading, speaking, image, band)
     await bot.send_message(text=text, chat_id=callback_query.from_user.id, reply_markup=InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text='🏠 Bosh sahifa', callback_data='menu_')]]))
-    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
-
+    try:
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    except TelegramBadRequest:
+        pass
 
 # ------------------------------------  Audio --------------------------------------------------------------------------#
 @dp.callback_query(F.data.startswith('audio_'))
 async def audiol(callback_query: CallbackQuery):
     language = await get_user_language(callback_query.from_user.id)
-    text = {'uz': 'Sizga kerakli audio qaysin bolimdan', 'ru': 'Sizga kerakli audio qaysin bolimdan',
-            'en': 'Sizga kerakli audio qaysin bolimdan', }
+    text = {
+        'uz': '🎧 Sizga kerakli audio qaysi bo‘limdan? 📂',
+        'ru': '🎧 Какой раздел нужен для вашего аудио? 📂',
+        'en': '🎧 Which section do you need the audio from? 📂'
+    }
     current_text = text.get(language)
     current_markup = await audio_home(language)
-    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
-
-    # Check if the content or markup has changed
-    if callback_query.message.text != current_text or callback_query.message.reply_markup != current_markup:
-        await bot.edit_message_text(message_id=callback_query.message.message_id, text=current_text,
+    await bot.edit_message_text(message_id=callback_query.message.message_id, text=current_text,
                                     chat_id=callback_query.from_user.id, reply_markup=current_markup)
-
-    # Delete previous message if necessary
     try:
-        await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id-1)
         await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
     except TelegramBadRequest:
         pass
@@ -2084,11 +2193,19 @@ async def audio_monthl(callback_query: CallbackQuery, state: FSMContext):
     data = callback_query.data.split('_')[2]
     await state.update_data(audio_home=data)
     language = await get_user_language(callback_query.from_user.id)
-    text = {'uz': f'{data.upper()} Qaysi bosqichdagi audio', 'ru': f'{data.upper()} Qaysi bosqichdagi audio',
-            'en': f'{data.upper()} Qaysi bosqichdagi audio', }
+    text = {
+        'uz': f'({data.upper()}) 📊 Darajangizni tanlang: 🔽',
+        'ru': f'({data.upper()}) 📊 Выберите ваш уровень: 🔽',
+        'en': f'({data.upper()}) 📊 Please select your level: 🔽'
+    }
+
     await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
                                 text=text.get(language), reply_markup=await month_audio())
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    try:
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    except TelegramBadRequest:
+        pass
 
 
 @dp.callback_query(F.data.startswith('?audio_'))
@@ -2098,9 +2215,11 @@ async def audio_level2(callback_query: CallbackQuery, state: FSMContext):
     data3 = await state.get_data()
     data = data3.get('audio_home')
     language = await get_user_language(callback_query.from_user.id)
-    text = {'uz': f'{data.upper()} ni {data} larning oyini tanlang',
-            'ru': f'{data.upper()} ni {data} larning oyini tanlang',
-            'en': f'{data.upper()} ni {data} larning oyini tanlang', }
+    text = {
+        'uz': f'{data.upper()} audioni olish uchun oyingizni tanlang 🎧',
+        'ru': f'{data.upper()} для получения аудио выберите вашу игру 🎧',
+        'en': f'{data.upper()} to get the audio, select your game 🎧'
+    }
     await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
                                 text=text.get(language), reply_markup=await audio_month(language, data))
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
@@ -2161,10 +2280,76 @@ async def results(callback_query: CallbackQuery):
 
 @dp.callback_query(F.data.startswith("result_"))
 async def result(callback_query: CallbackQuery):
+    language = await get_user_language(callback_query.from_user.id)
     data = callback_query.data.split('_')[1]
     if data == 'English':
-        await send_certificate(bot, callback_query.from_user.id, callback_query)
+        await send_certificate(bot, callback_query.from_user.id, callback_query,language)
+    try:
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id)
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id-1)
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    except TelegramBadRequest as e:
+        pass
 
+
+
+@dp.callback_query(F.data.startswith('delete_result_'))
+async def delete_resultantly(callback_query:CallbackQuery):
+    language = await get_user_language(callback_query.from_user.id)
+    data = callback_query.data.split('_')[2]
+    text = {
+        'uz': '⚠️ Siz bu maʼlumotni o‘chirishni xohlaysizmi? 🗑️',
+        'ru': '⚠️ Вы действительно хотите удалить эту информацию? 🗑️',
+        'en': '⚠️ Are you sure you want to delete this information? 🗑️'
+    }
+
+    try:
+        await bot.edit_message_caption(
+            message_id=callback_query.message.message_id,
+            caption=text[language],
+            chat_id=callback_query.from_user.id,
+            reply_markup=await keyboard(language, data)
+        )
+    except TelegramBadRequest as e:
+        print(f"Failed to edit message: {e}")
+
+
+@dp.callback_query(F.data.startswith('return_result_'))
+async def return_result(callback_query: CallbackQuery):
+    language = await get_user_language(callback_query.from_user.id)
+    certificate = await image_send_edit_to_delete(callback_query.data.split('_')[2])
+    text = (
+            f"📋 Certificate Information:\n\n"
+            f"👤 Full Name: {certificate.fullname}\n"
+            f"🏅 Band Score: {certificate.Overall_Band}\n\n"
+            f"🗣 Speaking: {certificate.speaking}\n"
+            f"✍️ Writing: {certificate.writing}\n"
+            f"👂 Listening: {certificate.listening}\n"
+            f"📖 Reading: {certificate.reading}\n\n"
+            f"✨Smart English\n<a href='http://instagram.com/smart.english.official'>Instagram</a>|<a href='https://t.me/SMARTENGLISH2016'>Telegram</a>|<a href='https://www.youtube.com/channel/UCu8wC4sBtsVK6befrNuN7bw'>YouTube</a>|<a href='https://t.me/Smart_Food_official'>Smart Food</a>|<a href='https://t.me/xusanboyman200'>Programmer</a>")
+
+    await bot.edit_message_caption(
+        chat_id=callback_query.from_user.id,
+        message_id=callback_query.message.message_id,
+        caption=text,
+        reply_markup=await delete_result_en(language,certificate.id,callback_query.message.message_id),
+        parse_mode='HTML'
+    )
+
+@dp.callback_query(F.data.startswith('yes_delete_'))
+async def yes_delete3(callback_query:CallbackQuery):
+    language = await get_user_language(callback_query.from_user.id)
+    await delete_results_en(callback_query.data.split('_')[2])
+    text = {
+        'uz':'Natija muaffaqiyatli ochirildi :tick',
+        'ru':'Natija muaffaqiyatli ochirildi :tick',
+        'en':'Natija muaffaqiyatli ochirildi :tick',
+    }
+    try:
+        await callback_query.answer(text=text.get(language))
+        await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
+    except TelegramBadRequest as e:
+        pass
 
 # ------------------------------------Hire worker-----------------------------------------------------------------------#
 @dp.callback_query(F.data.startswith('hire_'))
