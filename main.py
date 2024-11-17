@@ -2,7 +2,7 @@ import asyncio
 import os
 import traceback
 from datetime import datetime
-from time import sleep, localtime
+from time import localtime, sleep
 from typing import Callable, Dict, Any, Awaitable
 from aiogram import Bot, Dispatcher, F, BaseMiddleware
 from aiogram.exceptions import TelegramBadRequest
@@ -11,7 +11,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, TelegramObject, Update, \
     ReplyKeyboardMarkup, KeyboardButton, FSInputFile, ReplyKeyboardRemove
-from sqlalchemy import Column, Integer, String, DateTime, func, select, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, func, select, ForeignKey, Boolean, update
+from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase
 
@@ -29,21 +30,28 @@ class Base(AsyncAttrs, DeclarativeBase):
     pass
 
 
+# -------------------------------------time-----------------------------------------------------------------------------#
+current_time = localtime()
+current_year = current_time.tm_year
+start_time = datetime.now()
+formatted_time = start_time.strftime("%d/%m/%Y %H:%M")
+
+
 # ----------------------------------create table and its volumes--------------------------------------------------------#
 class User(Base):
     __tablename__ = 'Users'
     id = Column(Integer, primary_key=True)
-    tg_id = Column(Integer, nullable=False, unique=True)
+    tg_id = Column(Integer, unique=True, nullable=False)
     FIO = Column(String, nullable=True)
     tg_name = Column(String, nullable=False)
     tg_username = Column(String, nullable=True)
     tg_number = Column(Integer, unique=True, nullable=True)
     gender = Column(String, nullable=True)
-    born_year = Column(Integer, nullable=True)
+    born_year = Column(String, nullable=True)
     language = Column(String, nullable=True)
     role = Column(String, nullable=False, default='User')
     registered = Column(Boolean, nullable=False, default=False)
-    register_time = Column(DateTime, nullable=True)
+    register_time = Column(String, nullable=True, default=formatted_time)
 
 
 class Registering(Base):
@@ -71,7 +79,7 @@ class Results_English(Base):
     listening = Column(String, nullable=False)
     Overall_Band = Column(String, nullable=False)
     image = Column(String, nullable=False)
-    is_deleted = Column(String, default='False',nullable=True)  # Soft delete flag
+    is_deleted = Column(String, default='False', nullable=True)  # Soft delete flag
     register_time = Column(DateTime, nullable=True)
 
 
@@ -121,11 +129,37 @@ async def user_role(tg_id):
 
 async def add_user(tg_id: int, username: str, name: str) -> None:
     async with async_session() as session:
-        new_user = User(tg_id=tg_id, tg_username=username, tg_name=name, language="en"  # default language if needed
-                        )
+        # Check if user already exists
+        existing_user = await session.execute(select(User).where(User.tg_id == tg_id))
+        if existing_user.scalar_one_or_none():
+            return  # User already exists, so we do not add them again
+
+        new_user = User(tg_id=tg_id, tg_username=username, tg_name=name, language="en")
         session.add(new_user)
         await session.commit()
 
+
+
+async def add_user_full(tg_id: int, username: str, name: str, number: str, fullname: str, born_year: str,
+                        gender: str) -> None:
+    async with async_session() as session:
+        stmt = select(User).where(User.tg_id == tg_id)
+        result = await session.execute(stmt)
+        user = result.scalar_one_or_none()
+        update_stmt = (
+                update(User)
+                .where(User.tg_id == tg_id)
+                .values(
+                    tg_username=username,
+                    tg_name=name,
+                    gender=gender,
+                    born_year=born_year,
+                    FIO=fullname,
+                    tg_number=number
+                )
+            )
+        await session.execute(update_stmt)
+        await session.commit()
 
 async def hire_employee(tg_id: int, username: str, name: str, year: str, certificate: str, experience: str,
                         image: str, ) -> None:
@@ -145,13 +179,27 @@ async def set_user_language(tg_id, language: str):
 
         # If user exists, update their language
         if user:
-            user.language = language
+            try:
+                user = result.scalar_one_or_none()
+            except MultipleResultsFound:
+                user = result.scalars().first()
         else:
             # If user does not exist, create a new entry
             session.add(User(tg_id=tg_id, language=language))
 
         # Commit the changes
         await session.commit()
+
+
+async def changer_user_role(user_id, new_role):
+    async with async_session() as session:
+        stmt = select(User).where(User.id == user_id)
+        result = await session.execute(stmt)
+        user = result.scalar_one_or_none()
+        update_stmt = (update(User).where(User.id == user_id).values(role=new_role))
+        await session.execute(update_stmt)
+        await session.commit()
+        return True
 
 
 async def register_result_en(fullname: str, writing: str, listening, reading: str, speaking: str, image: str,
@@ -179,31 +227,42 @@ async def get_user_by_tg_id(tg_id):
         user = result.scalars().first()
         return user
 
+
 async def get_result_english(id):
     async with async_session() as session:
-            stmt = select(Results_English).where(Results_English.id==id)  # Check for the specific tg_id
-            result = await session.execute(stmt)
-            user_role = result.all()  # Fetch the role or None if not found
-            return user_role
+        stmt = select(Results_English).where(Results_English.id == id)  # Check for the specific tg_id
+        result = await session.execute(stmt)
+        user_role = result.all()  # Fetch the role or None if not found
+        return user_role
+
 
 async def manager():
     async with async_session() as session:
-        stmt = select(User.tg_id).where(User.role == 'Manager')
+        stmt = select(User.tg_id).where(User.role == 'Admin')
         result1 = await session.execute(stmt)
         user_language = result1.scalar_one_or_none()
         return user_language
 
 
-async def all_users():
+async def all_users(tg_id):
     async with async_session() as session:
-        stmt = select(User).where(User.role != 'Manager' or User.role != 'Admin')
+        stmt = select(User).where(User.tg_id != tg_id)
         result = await session.execute(stmt)  # Executes the query
         user_ids = result.scalars().all()  # Fetches all tg_ids as a list
-        return user_ids  # Returns the list of Telegram IDs
+        return user_ids
+
+
+async def get_single_role(tg_id):
+    async with async_session() as session:
+        stmt = select(User).where(User.id == tg_id)
+        result = await session.execute(stmt)  # Executes the query
+        user_ids = result.scalar()
+        return user_ids
+
 
 async def get_user_role(tg_id):
     async with async_session() as session:
-        stmt = select(User.role).where(User.tg_id == tg_id )  # Check for the specific tg_id
+        stmt = select(User.role).where(User.tg_id == tg_id)  # Check for the specific tg_id
         result = await session.execute(stmt)
         user_role = result.scalar_one_or_none()  # Fetch the role or None if not found
         return user_role
@@ -221,7 +280,7 @@ async def delete_results_en(tg_id):
             await session.commit()  # Save changes to the database
 
 
-async def change_user_language(tg_id,language):
+async def change_user_language(tg_id, language):
     async with async_session() as session:
         stmt = select(User).where(User.tg_id == tg_id)
         result = await session.execute(stmt)
@@ -231,11 +290,7 @@ async def change_user_language(tg_id,language):
             user.language = language  # Set the attribute (use a boolean, not a string)
             await session.commit()  # Save changes to the database
 
-# -------------------------------------time-----------------------------------------------------------------------------#
-current_time = localtime()
-current_year = current_time.tm_year
-start_time = datetime.now()
-formatted_time = start_time.strftime("%Y-%m-%d %H:%M:%S")
+
 
 
 # -------------------------------------State Group----------------------------------------------------------------------#
@@ -291,6 +346,7 @@ class Register_full(StatesGroup):
     year = State()
     month = State()
     day = State()
+    fake_month = State()
     fake_number = State()
     number2 = State()
     fake_gender = State()
@@ -316,7 +372,7 @@ async def languages():
     # Loop through the language list to create buttons
     for i in lan:
         # Add button text (exclude the flag) and callback data (first 2 chars of the language code)
-        row.append(InlineKeyboardButton(text=f'{i[2:]}', callback_data=f"lan_{i[:2]}"))
+        row.append(InlineKeyboardButton(text=f'{i[2:]}', callback_data=f"lan_{i[:2]}_"))
         if len(row) == 3:  # Add up to 3 buttons in one row
             inline_button.append(row)
             row = []
@@ -329,6 +385,40 @@ async def languages():
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
+
+async def flanguages(language):
+    lan = {
+        'uz': ["uz🇺🇿 O'zbek tili", 'ru🇷🇺 Русский язык', "en🇺🇸 English"],
+        'en': ["uz🇺🇿 O'zbek tili", 'ru🇷🇺 Русский язык', "en🇺🇸 English"],
+        'ru': ["uz🇺🇿 O'zbek tili", 'ru🇷🇺 Русский язык', "en🇺🇸 English"],
+    }
+
+    inline_button = []
+    row = []
+
+    lang_text = lan.get(language, [])  # Default to empty list if not found
+
+    # Loop through each language text and create a button
+    for text in lang_text:
+        # Split the string into parts (flag and language name)
+        flag = text.split()[0]  # The first part is the flag
+        language_name = " ".join(text.split()[1:])  # The rest is the language name
+
+        # Add the button to the row
+        row.append(InlineKeyboardButton(text=f'{flag} {language_name}', callback_data=f"lan_{text[:2]}_"))
+
+        # If the row has 3 buttons, append it and reset the row
+        if len(row) == 3:
+            inline_button.append(row)
+            row = []
+
+    # If there's any remaining buttons in the row, append it
+    if row:
+        inline_button.append(row)
+
+    # Create inline keyboard markup
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
 
 async def scores(language, category, before, band):
     inline_button = []
@@ -457,18 +547,42 @@ async def month_audio():
 
 async def home(language):
     if language == 'uz':
-        menu = ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'audio_.🔊 Audio materiallar',
-                'complain_.📌 Shikoyat qilish', 'hire_.👨‍💼 Xodimlar']
+        menu = [
+            'courses_.✍️ Kursga yozilish',
+            'results.🏆 Natijalar',
+            'audio_.🔊 Audio materiallar',
+            'complain_.📌 Shikoyat qilish',
+            'hire_.👨‍💼 Xodimlar',
+            'settings.⚙️ Sozlamalar'
+        ]
     elif language == 'en':
-        menu = ['courses_.✍️ Enroll in course', 'results.🏆 Results', 'audio_.🔊 Audio materials',
-                'complain_.📌 File a complaint', 'hire_.👨‍💼 Employees']
+        menu = [
+            'courses_.✍️ Enroll in course',
+            'results.🏆 Results',
+            'audio_.🔊 Audio materials',
+            'complain_.📌 File a complaint',
+            'hire_.👨‍💼 Employees',
+            'settings.⚙️ Settings'
+        ]
     elif language == 'ru':
-        menu = ['courses_.✍️ Записаться на курс', 'results.🏆 Результаты', 'audio_.🔊 Аудиоматериалы',
-                'complain_.📌 Пожаловаться', 'hire_.👨‍💼 Сотрудники']
+        menu = [
+            'courses_.✍️ Записаться на курс',
+            'results.🏆 Результаты',
+            'audio_.🔊 Аудиоматериалы',
+            'complain_.📌 Пожаловаться',
+            'hire_.👨‍💼 Сотрудники',
+            'settings.⚙️ Настройки'
+        ]
     else:
         # Default language (for example, you could use 'en')
-        menu = ['courses_.✍️ Enroll in course', 'results.🏆 Results', 'audio_.🔊 Audio materials',
-                'complain_.📌 File a complaint', 'hire_.👨‍💼 Employees']
+        menu = [
+            'courses_.✍️ Enroll in course',
+            'results.🏆 Results',
+            'audio_.🔊 Audio materials',
+            'complain_.📌 File a complaint',
+            'hire_.👨‍💼 Employees',
+            'settings.⚙️ Settings'
+        ]
 
     inline_button = []
     row = []
@@ -1050,36 +1164,29 @@ async def conifim_hire(language):
     return inline_keyboard
 
 
-async def change_user_role(language, data):
+async def change_user_role(language, current_role, user_id):
+    role_options = {
+        'uz': [f'user_role_{user_id}_Call centre.📋 Registrator', f'user_role_{user_id}_User.👤 Foydalanuvchi',
+            f'user_role_{user_id}_Manager.👨‍💼 Manager'],
+        'ru': [f'user_role_{user_id}_Call centre.📋 Регистратор', f'user_role_{user_id}_User.👤 Пользователь',
+            f'user_role_{user_id}_Manager.👨‍💼 Менеджер'],
+        'en': [f'user_role_{user_id}_Call centre.📋 Registrar', f'user_role_{user_id}_User.👤 User',
+            f'user_role_{user_id}_Manager.👨‍💼 Manager']}
+
+    roles = role_options.get(language, [])
     inline_button = []
     row = []
-    text = {
-        'uz': [
-            'user_role_caller.📋 Registrator',  # Registrator - 📋 (Clipboard)
-            'user_role_admin.🛠️ Admin',  # Admin - 🛠️ (Tools)
-            'user_role_user.👤 Foydalanuvchi',  # User - 👤 (User)
-            'user_role_manager.👨‍💼 Manager'  # Manager - 👨‍💼 (Office worker)
-        ],
-        'ru': [
-            'user_role_caller.📋 Регистратор',  # Registrator - 📋 (Clipboard)
-            'user_role_admin.🛠️ Админ',  # Admin - 🛠️ (Tools)
-            'user_role_user.👤 Пользователь',  # User - 👤 (User)
-            'user_role_manager.👨‍💼 Менеджер'  # Manager - 👨‍💼 (Office worker)
-        ],
-        'en': [
-            'user_role_caller.📋 Registrator',  # Registrator - 📋 (Clipboard)
-            'user_role_admin.🛠️ Admin',  # Admin - 🛠️ (Tools)
-            'user_role_user.👤 User',  # User - 👤 (User)
-            'user_role_manager.👨‍💼 Manager'  # Manager - 👨‍💼 (Office worker)
-        ]
-    }
 
-    # Iterate through the list of roles for the given language
-    for i in text.get(language, []):  # Get the roles for the selected language
-        role_name = i.split('.')[0]  # Get the role name before the dot
-        if role_name.lower() == data.lower():  # Compare it with the provided 'data'
-            text[language].remove(i)
-        row.append(InlineKeyboardButton(text=f'{i.split('.')[1]}', callback_data=f'{i.split('.')[0]}'))
+    for role in roles:
+        callback_data, display_text = role.split('.')
+        role_name = callback_data.split('_')[3]
+        if role_name == current_role:
+            continue
+        row.append(InlineKeyboardButton(text=display_text, callback_data=callback_data))
+        if len(row) == 3:
+            inline_button.append(row)
+            row = []  # Reset the row
+    if row:
         inline_button.append(row)
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
@@ -1088,33 +1195,26 @@ async def change_user_role(language, data):
 async def compilationkb(language):
     inline_keyboard = []
     row = []
-    text = {
-        'uz': [
-            'c_teacher_main.🧑‍🏫 (Main) O‘qituvchi',  # Main Teacher - 🧑‍🏫 (Teacher)
-            'c_teacher_assistant.🧑‍💼 Assistent',  # Assistant - 🧑‍💼 (Office worker)
-            'c_teacher_examiner.📝 Imtihon oluvchi',  # Examiner - 📝 (Writing)
-            'c_teacher_video.🎞 (Video) O‘qituvchi',  # Video Teacher - 🎞 (Movie)
-            'menu_.🏠 Bosh menu'  # Main Menu - 🏠 (House)
-        ],
-        'ru': [
-            'c_teacher_main.🧑‍🏫 (Main) Учитель',  # Main Teacher - 🧑‍🏫 (Teacher)
-            'c_teacher_assistant.🧑‍💼 Ассистент',  # Assistant - 🧑‍💼 (Office worker)
-            'c_teacher_examiner.📝 Экзаменатор',  # Examiner - 📝 (Writing)
-            'c_teacher_video.🎞 (Video) Учитель',  # Video Teacher - 🎞 (Movie)
-            'menu_.🏠 Главное меню'  # Main Menu - 🏠 (House)
-        ],
-        'en': [
-            'c_teacher_main.🧑‍🏫 (Main) Teacher',  # Main Teacher - 🧑‍🏫 (Teacher)
-            'c_teacher_assistant.🧑‍💼 Assistant',  # Assistant - 🧑‍💼 (Office worker)
-            'c_teacher_examiner.📝 Examiner',  # Examiner - 📝 (Writing)
-            'c_teacher_video.🎞 (Video) Teacher',  # Video Teacher - 🎞 (Movie)
-            'menu_.🏠 Main menu'  # Main Menu - 🏠 (House)
-        ]
-    }
+    text = {'uz': ['c_teacher_main.🧑‍🏫 (Main) O‘qituvchi',  # Main Teacher - 🧑‍🏫 (Teacher)
+                   'c_teacher_assistant.🧑‍💼 Assistent',  # Assistant - 🧑‍💼 (Office worker)
+                   'c_teacher_examiner.📝 Imtihon oluvchi',  # Examiner - 📝 (Writing)
+                   'c_teacher_video.🎞 (Video) O‘qituvchi',  # Video Teacher - 🎞 (Movie)
+                   'menu_.🏠 Bosh menu'  # Main Menu - 🏠 (House)
+                   ], 'ru': ['c_teacher_main.🧑‍🏫 (Main) Учитель',  # Main Teacher - 🧑‍🏫 (Teacher)
+                             'c_teacher_assistant.🧑‍💼 Ассистент',  # Assistant - 🧑‍💼 (Office worker)
+                             'c_teacher_examiner.📝 Экзаменатор',  # Examiner - 📝 (Writing)
+                             'c_teacher_video.🎞 (Video) Учитель',  # Video Teacher - 🎞 (Movie)
+                             'menu_.🏠 Главное меню'  # Main Menu - 🏠 (House)
+                             ], 'en': ['c_teacher_main.🧑‍🏫 (Main) Teacher',  # Main Teacher - 🧑‍🏫 (Teacher)
+                                       'c_teacher_assistant.🧑‍💼 Assistant',  # Assistant - 🧑‍💼 (Office worker)
+                                       'c_teacher_examiner.📝 Examiner',  # Examiner - 📝 (Writing)
+                                       'c_teacher_video.🎞 (Video) Teacher',  # Video Teacher - 🎞 (Movie)
+                                       'menu_.🏠 Main menu'  # Main Menu - 🏠 (House)
+                                       ]}
 
     for i in text.get(language):
         row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}'))
-        if len(row) == 4:
+        if len(row) == 2:
             inline_keyboard.append(row)
             row = []
     if row:
@@ -1124,13 +1224,12 @@ async def compilationkb(language):
     return inline_keyboard
 
 
-async def delete_result_en(language: str,id,message_id):
+async def delete_result_en(language: str, id, message_id):
     inline_button = []
-    text = {
-        'uz': [f'delete_result_{id}_{message_id}.🗑️ O‘chirish'],  # Uzbek: "O‘chirish" (Delete)
-        'ru': [f'delete_result_{id}_{message_id}.🗑️ Удалить'],  # Russian: "Удалить" (Delete)
-        'en': [f'delete_result_{id}_{message_id}.🗑️ Delete']  # English: "Delete"
-    }
+    text = {'uz': [f'delete_result_{id}_{message_id}.🗑️ O‘chirish'],  # Uzbek: "O‘chirish" (Delete)
+            'ru': [f'delete_result_{id}_{message_id}.🗑️ Удалить'],  # Russian: "Удалить" (Delete)
+            'en': [f'delete_result_{id}_{message_id}.🗑️ Delete']  # English: "Delete"
+            }
 
     for i in text.get(language):
         inline_button.append([InlineKeyboardButton(text=f"{i.split('.')[1]}", callback_data=i.split('.')[0])])
@@ -1138,27 +1237,248 @@ async def delete_result_en(language: str,id,message_id):
     return inline_keyboard
 
 
-async def keyboard(language,data):
-        inline_button = []
-        row = []
-        text2 = {
-            'uz': [f'yes_delete_{data}.✅ Ha, o‘chir', f'return_result_{data}.❌ Yo‘q'],
-            # Uzbek: "Ha, o‘chir" (Yes, delete) / "Yo‘q" (No)
-            'ru': [f'yes_delete_{data}.✅ Да, удалить', f'return_result_{data}.❌ Нет'],
-            # Russian: "Да, удалить" (Yes, delete) / "Нет" (No)
-            'en': [f'yes_delete_{data}.✅ Yes, delete', f'return_result_{data}.❌ No']  # English: "Yes, delete" / "No"
-        }
-        for i in text2.get(language):
-            row.append(InlineKeyboardButton(text=f"{i.split('.')[1]}",callback_data=f"{i.split('.')[0]}"))
+async def keyboard(language, data):
+    inline_button = []
+    row = []
+    text2 = {'uz': [f'yes_delete_{data}.✅ Ha, o‘chir', f'return_result_{data}.❌ Yo‘q'],
+             # Uzbek: "Ha, o‘chir" (Yes, delete) / "Yo‘q" (No)
+             'ru': [f'yes_delete_{data}.✅ Да, удалить', f'return_result_{data}.❌ Нет'],
+             # Russian: "Да, удалить" (Yes, delete) / "Нет" (No)
+             'en': [f'yes_delete_{data}.✅ Yes, delete', f'return_result_{data}.❌ No']  # English: "Yes, delete" / "No"
+             }
+    for i in text2.get(language):
+        row.append(InlineKeyboardButton(text=f"{i.split('.')[1]}", callback_data=f"{i.split('.')[0]}"))
+    inline_button.append(row)
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+async def settings_kb(language):
+    inline_buttons = []
+    row = []
+    text = {'uz': ['lan2_.🔄 Tilni o‘zgartirish','fregister_.📝 To‘liq ro‘yxatdan o‘tish','menu_.🏠 Bosh menu'],
+            'ru': ['lan2_.🔄 Изменить язык',
+        'fregister_.📝 Полная регистрация',  # Full Registration - 📝 (Writing or filling forms)
+        'menu_.🏠 Главное меню'  # Main menu - 🏠 (House)
+    ], 'en': ['lan2_.🔄 Change language',  # Change language - 🔄 (Rotate arrows indicating change)
+        'fregister_.📝 Full Registration',  # Full Registration - 📝 (Writing or filling forms)
+        'menu_.🏠 Main menu'  # Main menu - 🏠 (House)
+    ]}
+
+    for i in text.get(language):
+        row.append(InlineKeyboardButton(text=i.split('.')[1], callback_data=i.split('.')[0]))
+        if len(row) == 2:
+            inline_buttons.append(row)
+            row = []
+    if row:
+        inline_buttons.append(row)
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_buttons)
+    return inline_keyboard
+async def fregister_year(page):
+    inline_keyboard = []
+    row = []
+
+    if int(page) == 1:
+        for i in range(current_year - 11, current_year - 28, -1):
+            row.append(InlineKeyboardButton(text=f'{i}', callback_data=f'yfregister_year_{i}_'))
+            if len(row) == 4:
+                inline_keyboard.append(row)
+                row = []
+        if row:
+            inline_keyboard.append(row)
+
+        inline_keyboard.append([InlineKeyboardButton(text='⏪', callback_data=f'ypfregister_year2_{3}'),
+                                InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_'),
+                                InlineKeyboardButton(text='⏩', callback_data=f'ypfregister_year2_{2}')])
+        inline_keyboard.append([InlineKeyboardButton(text='🔙 Orqaga',callback_data=f'fregister_')])
+
+    elif int(page) == 2:
+        for i in range(current_year - 28, current_year - 45, -1):
+            row.append(InlineKeyboardButton(text=f'{i}', callback_data=f'yfregister_year_{i}_'))
+            if len(row) == 4:
+                inline_keyboard.append(row)
+                row = []
+        if row:
+            inline_keyboard.append(row)
+
+        # Navigation buttons for page 2
+        inline_keyboard.append([InlineKeyboardButton(text='⏪', callback_data=f'ypfregister_year2_{1}'),
+                                InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_'),
+                                InlineKeyboardButton(text='⏩', callback_data=f'ypfregister_year2_{3}')])
+        inline_keyboard.append([InlineKeyboardButton(text='🔙 Orqaga', callback_data=f'yfregister_')])
+
+    elif int(page) == 3:
+        for i in range(current_year - 45, current_year - 62, -1):
+            row.append(InlineKeyboardButton(text=f'{i}', callback_data=f'yfregister_year_{i}_'))
+            if len(row) == 4:
+                inline_keyboard.append(row)
+                row = []
+        if row:
+            inline_keyboard.append(row)
+
+        # Navigation buttons for page 3
+        inline_keyboard.append([InlineKeyboardButton(text='⏪', callback_data=f'ypfregister_year2_{2}'),
+                                InlineKeyboardButton(text='🏠 Bosh menu', callback_data='menu_'),
+                                InlineKeyboardButton(text='⏩', callback_data=f'ypfregister_year2_{1}')])
+        inline_keyboard.append([InlineKeyboardButton(text='🔙 Orqaga',callback_data=f'fregister_')])
+
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+    return inline_keyboard
+async def fmonth(language):
+    # Month dictionary with custom names for each language
+    match language:
+        case 'uz':
+            months = {12: '12🎄 Dekabr',  # December
+                      1: '01❄️ Yanvar',  # January
+                      2: '02🌸 Fevral',  # February
+                      3: '03🌷 Mart',  # March
+                      4: '04🌱 Aprel',  # April
+                      5: '05🌞 May',  # May
+                      6: '06☀️ Iyun',  # June
+                      7: '07🌞 Iyun',  # July
+                      8: '08🌅 Avgust',  # August
+                      9: '09🎒 Sentabr',  # September
+                      10: '10🍂 Oktabr',  # October
+                      11: '11🌧️ Noyabr'  # November
+                      }
+        case 'ru':
+            months = {12: '12🎄 Декабрь',  # December
+                      1: '01❄️ Январь',  # January
+                      2: '02🌸 Февраль',  # February
+                      3: '03🌷 Март',  # March
+                      4: '04🌱 Апрель',  # April
+                      5: '05🌞 Май',  # May
+                      6: '06☀️ Июнь',  # June
+                      7: '07🌞 Июль',  # July
+                      8: '08🌅 Август',  # August
+                      9: '09🎒 Сентябрь',  # September
+                      10: '10🍂 Октябрь',  # October
+                      11: '11🌧️ Ноябрь'  # November
+                      }
+        case 'en':
+            months = {12: '12🎄 December',  # December
+                      1: '01❄️ January',  # January
+                      2: '02🌸 February',  # February
+                      3: '03🌷 March',  # March
+                      4: '04🌱 April',  # April
+                      5: '05🌞 May',  # May
+                      6: '06☀️ June',  # June
+                      7: '07🌞 July',  # July
+                      8: '08🌅 August',  # August
+                      9: '09🎒 September',  # September
+                      10: '10🍂 October',  # October
+                      11: '11🌧️ November'  # November
+                      }
+        case _:
+            # Default to Uzbek if language is unknown
+            months = {12: '12🎄 Dekabr',  # December
+                      1: '01❄️ Yanvar',  # January
+                      2: '02🌸 Fevral',  # February
+                      3: '03🌷 Mart',  # March
+                      4: '04🌱 Aprel',  # April
+                      5: '05🌞 May',  # May
+                      6: '06☀️ Iyun',  # June
+                      7: '07🌞 Iyun',  # July
+                      8: '08🌅 Avgust',  # August
+                      9: '09🎒 Sentabr',  # September
+                      10: '10🍂 Oktabr',  # October
+                      11: '11🌧️ Noyabr'  # November
+                      }
+
+    inline_buttons = []
+    row = []
+
+    # Button creation for each month
+    for num, label in months.items():
+        row.append(InlineKeyboardButton(text=label[2:],
+                                        callback_data=f'fmonth_{label[:2]}_{label}'))  # Removing the number part
+        if len(row) == 3:  # Limit to 3 buttons per row
+            inline_buttons.append(row)
+            row = []
+    if row:  # Add any remaining buttons to the last row
+        inline_buttons.append(row)
+
+    # Language-specific footer buttons
+    if language == 'en':
+        row.append(InlineKeyboardButton(text="🏠 Home", callback_data='menu_'))
+        row.append(InlineKeyboardButton(text="🔙 Back", callback_data=f'fullname_f'))
+    elif language == 'ru':
+        row.append(InlineKeyboardButton(text="🏠 Home", callback_data='menu'))
+        row.append(InlineKeyboardButton(text="🔙 Back", callback_data=f'fullname_f'))
+    elif language == 'uz':
+        row.append(InlineKeyboardButton(text="🏠 Bosh menu", callback_data='menu_'))
+        row.append(InlineKeyboardButton(text="🔙 Ortga", callback_data=f'fullname_f'))
+
+    if row:  # Add any remaining footer buttons
+        inline_buttons.append(row)
+
+    # Create an inline keyboard with the buttons
+    inline_kb = InlineKeyboardMarkup(inline_keyboard=inline_buttons)
+    return inline_kb
+async def fdays(month, year):
+    month_days = {'01': 31, '02': 29 if (int(year) % 4 == 0) else 28,  # Leap year logic
+                  '03': 31, '04': 30, '05': 31, '06': 30, '07': 31, '08': 31, '09': 30, '10': 31, '11': 30, '12': 31}
+    days_in_month = month_days[month]  # Get the number of days for the selected month
+    inline_buttons = []
+    row = []
+
+    for num in range(1, days_in_month + 1):
+        row.append(InlineKeyboardButton(text=f'{num}', callback_data=f'fday_{num}_'))
+        if len(row) == 5:  # Limit to 3 buttons per row
+            inline_buttons.append(row)
+            row = []  # Reset the row for the next set of buttons
+    if row:  # Add any remaining buttons to the last row
+        inline_buttons.append(row)
+    inline_buttons.append([InlineKeyboardButton(text='🏠 Bosh sahifa', callback_data='menu_'),
+                           InlineKeyboardButton(text='🔙 Orqaga', callback_data=f'yfregister_year_')])
+    inline_kb = InlineKeyboardMarkup(inline_keyboard=inline_buttons)
+    return inline_kb
+async def fgender(language):
+    menu = {
+        'uz': ['fgender_man_.🤵 Erkak kishi', 'fgender_women_.👩 Ayol kishi', 'fday_.🔙 Orqaga','menu_.🏠 Bosh menu'],
+        'ru': ['fgender_man_.🤵 Мужчина', 'fgender_women_.👩 Женщина', 'fday_.🔙 Назад','menu_.🏠 Главное меню'],
+        'en': ['fgender_man_.🤵 Man', 'fgender_women_.👩 Woman', 'fday_.🔙 Back','menu_.🏠 Main menu']
+    }
+
+    inline_button = []
+    row = []
+
+    for i in menu.get(language):
+        row.append(InlineKeyboardButton(text=f'{i.split('.')[1]}', callback_data=f'{i}'))
+        if len(row) == 2:
+            inline_button.append(row)
+            row = []
+
+    if row:
         inline_button.append(row)
-        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
-        return inline_keyboard
+
+    # Create InlineKeyboardMarkup
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+async def fconifim(language):
+    text = {'uz': ['fconifim_.✅ Hammasi tog\'ri', 'fregister_.♻️ Boshqatan', 'menu_.🏠 Bosh menu'],
+            'ru': ['fconifim_.✅ Все верно', 'fregister_.♻️ Еще раз', 'menu_.🏠 Главное меню'],
+            'en': ['fconifim_.✅ Everything is correct', 'fregister_.♻️ Try again', 'menu_.🏠 Main menu']}
+
+    inline_button = []
+    row = []
+    for i in text.get(language):
+        row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split(".")[0]}'))
+        if len(row) == 2:
+            inline_button.append(row)
+            row = []
+    if row:
+        inline_button.append(row)
+
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
+    return inline_keyboard
+
+
+
+
 # ---------------------------------------functions ---------------------------------------------------------------------#
 
 
 async def delete_previous_messages(message, id):
-    sleep(0.5)
-    for i in range(2, 50):  # Try up to 10 previous messages
+    for i in range(1, 50):  # Try up to 10 previous messages
         try:
             await bot.delete_message(chat_id=id, message_id=message - i)
         except TelegramBadRequest as e:
@@ -1219,7 +1539,7 @@ async def image_send_edit_to_delete(id):
         return user_language
 
 
-async def send_certificate(bot: Bot, chat_id: int, callback_query,langauge):
+async def send_certificate(bot: Bot, chat_id: int, callback_query, langauge):
     async with async_session() as session:
         try:
             result = await session.execute(select(Results_English).order_by(Results_English.id.desc()))
@@ -1230,39 +1550,41 @@ async def send_certificate(bot: Bot, chat_id: int, callback_query,langauge):
             for certificate in certificates:
                 if certificate.is_deleted != '1':
                     text = (f"📋 Certificate Information:\n\n"
-                        f"👤 Full Name: {certificate.fullname}\n"
-                        f"🏅 Band Score: {certificate.Overall_Band}\n\n"
-                        f"🗣 Speaking: {certificate.speaking}\n"
-                        f"✍️ Writing: {certificate.writing}\n"
-                        f"👂 Listening: {certificate.listening}\n"
-                        f"📖 Reading: {certificate.reading}\n\n"
-                        f"✨Smart English\n<a href='http://instagram.com/smart.english.official'>Instagram</a>|<a href='https://t.me/SMARTENGLISH2016'>Telegram</a>|<a href='https://www.youtube.com/channel/UCu8wC4sBtsVK6befrNuN7bw'>YouTube</a>|<a href='https://t.me/Smart_Food_official'>Smart Food</a>|<a href='https://t.me/xusanboyman200'>Programmer</a>")
+                            f"👤 Full Name: {certificate.fullname}\n"
+                            f"🏅 Band Score: {certificate.Overall_Band}\n\n"
+                            f"🗣 Speaking: {certificate.speaking}\n"
+                            f"✍️ Writing: {certificate.writing}\n"
+                            f"👂 Listening: {certificate.listening}\n"
+                            f"📖 Reading: {certificate.reading}\n\n"
+                            f"✨Smart English\n<a href='http://instagram.com/smart.english.official'>Instagram</a>|<a href='https://t.me/SMARTENGLISH2016'>Telegram</a>|<a href='https://www.youtube.com/channel/UCu8wC4sBtsVK6befrNuN7bw'>YouTube</a>|<a href='https://t.me/Smart_Food_official'>Smart Food</a>|<a href='https://t.me/xusanboyman200'>Programmer</a>")
                     image_path = certificate.image
 
                     if os.path.exists(image_path):
                         photo = FSInputFile(image_path)
                         user_role = await get_user_role(callback_query.from_user.id)
                         if user_role == 'User':
-                            delete_button = await delete_result_en(langauge, certificate.id,callback_query.message.message_id)
-                            await bot.send_photo(chat_id=chat_id, photo=photo, caption=text, parse_mode='HTML', reply_markup=delete_button)
+                            delete_button = await delete_result_en(langauge, certificate.id,
+                                                                   callback_query.message.message_id)
+                            await bot.send_photo(chat_id=chat_id, photo=photo, caption=text, parse_mode='HTML',
+                                                 reply_markup=delete_button)
                         else:
                             await bot.send_photo(chat_id=chat_id, photo=photo, caption=text, parse_mode='HTML')
 
                     else:
-                     await bot.send_message(chat_id, f"Certificate image not found for {certificate.fullname}.",
+                        await bot.send_message(chat_id, f"Certificate image not found for {certificate.fullname}.",
                                                parse_mode='HTML')
-
 
             language = await get_user_language(tg_id=callback_query.from_user.id)
             language_map = {'ru': 'ru', 'en': 'en', 'uz': 'Bosh menu'}
             user_id = callback_query.from_user.id
             await bot.send_message(text=language_map.get(language, 'en'), chat_id=user_id,
-                                       reply_markup=await home(language))
+                                   reply_markup=await home(language))
 
         except Exception as e:
 
             error_message = traceback.format_exc()  # Get the full traceback
             await bot.send_message(chat_id, f"An error occurred:\n{error_message}")
+
 
 # -----------------------------------------Messages---------------------------------------------------------------------#
 @dp.message(CommandStart())
@@ -1288,23 +1610,18 @@ async def start(message: Message, state: FSMContext):
 
 
 @dp.callback_query(F.data.startswith('menu_'))
-async def menu(callback_query: CallbackQuery):
+async def menu(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(tg_id=callback_query.from_user.id)
     user_id = callback_query.from_user.id
-    match language:
-        case 'ru':
-            await bot.edit_message_text(message_id=callback_query.message.message_id, text='ru', chat_id=user_id,
-                                        reply_markup=await home(language))
-        case 'en':
-            await bot.edit_message_text(message_id=callback_query.message.message_id, text='en', chat_id=user_id,
-                                        reply_markup=await home(language))
-        case 'uz':
-            await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=user_id, text="Bosh menu",
-                                        reply_markup=await home(language))
-        case _:
-            await bot.edit_message_text(message_id=callback_query.message.message_id, text='en', chat_id=user_id,
-                                        reply_markup=await home(language))
+    text = {
+        'ru': "Главное меню",  # Text in Russian
+        'en': "Main Menu",  # Text in English
+        'uz': "Bosh menu"  # Text in Uzbek
+    }
+    await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=user_id, text=text.get(language),
+                                reply_markup=await home(language))
     try:
+        await state.clear()
         await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
         await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 1)
         await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 2)
@@ -1323,7 +1640,7 @@ async def language(callback_query: CallbackQuery):
                                 text={"ru": "ru", "en": "en", "uz": "Bosh menu"}.get(language),
                                 reply_markup=await home(language))
     try:
-        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id-1)
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 1)
         await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
     except TelegramBadRequest as e:
         pass
@@ -1341,10 +1658,12 @@ async def courses(callback_query: CallbackQuery, state: FSMContext):
                                         reply_markup=await tuition(language))
         case 'ru':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
+                                        chat_id=callback_query.from_user.id,
                                         text='Smart English o\'vmarkazidagi kurslardan birini tanlang',
                                         reply_markup=await tuition(language))
         case 'en':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
+                                        chat_id=callback_query.from_user.id,
                                         text='Smart English o\'vmarkazidagi kurslardan birini tanlang',
                                         reply_markup=await tuition(language))
 
@@ -1778,7 +2097,7 @@ async def confirm(callback_query: CallbackQuery, state: FSMContext):
     year = data.get('year')
     time = data.get('time')
     month = data.get('month')
-    born_year = f'{day:02}/{month}/{year}'
+    born_year = f'{int(day):02}/{month}/{year}'
     if callback_query.from_user.username:
         await register(tg_id=callback_query.from_user.username, name=fullname, phone_number=number, course=course,
                        level=level,  # Pass the correct value here
@@ -2137,10 +2456,11 @@ async def image(message: Message, state: FSMContext):
                          caption=text, reply_markup=await confirmt(language, True), parse_mode='HTML')
     try:
         await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id)
-        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id-1)
+        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id - 1)
         await delete_previous_messages(message.message_id, message.from_user.id)
     except TelegramBadRequest:
         pass
+
 
 @dp.callback_query(F.data.startswith('state_confirm_'))
 async def stagedconifer(callback_query: CallbackQuery, state: FSMContext):
@@ -2168,21 +2488,19 @@ async def stagedconifer(callback_query: CallbackQuery, state: FSMContext):
     except TelegramBadRequest:
         pass
 
+
 # ------------------------------------  Audio --------------------------------------------------------------------------#
 @dp.callback_query(F.data.startswith('audio_'))
 async def audiol(callback_query: CallbackQuery):
     language = await get_user_language(callback_query.from_user.id)
-    text = {
-        'uz': '🎧 Sizga kerakli audio qaysi bo‘limdan? 📂',
-        'ru': '🎧 Какой раздел нужен для вашего аудио? 📂',
-        'en': '🎧 Which section do you need the audio from? 📂'
-    }
+    text = {'uz': '🎧 Sizga kerakli audio qaysi bo‘limdan? 📂', 'ru': '🎧 Какой раздел нужен для вашего аудио? 📂',
+            'en': '🎧 Which section do you need the audio from? 📂'}
     current_text = text.get(language)
     current_markup = await audio_home(language)
     await bot.edit_message_text(message_id=callback_query.message.message_id, text=current_text,
-                                    chat_id=callback_query.from_user.id, reply_markup=current_markup)
+                                chat_id=callback_query.from_user.id, reply_markup=current_markup)
     try:
-        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id-1)
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 1)
         await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
     except TelegramBadRequest:
         pass
@@ -2193,11 +2511,8 @@ async def audio_monthl(callback_query: CallbackQuery, state: FSMContext):
     data = callback_query.data.split('_')[2]
     await state.update_data(audio_home=data)
     language = await get_user_language(callback_query.from_user.id)
-    text = {
-        'uz': f'({data.upper()}) 📊 Darajangizni tanlang: 🔽',
-        'ru': f'({data.upper()}) 📊 Выберите ваш уровень: 🔽',
-        'en': f'({data.upper()}) 📊 Please select your level: 🔽'
-    }
+    text = {'uz': f'({data.upper()}) 📊 Darajangizni tanlang: 🔽', 'ru': f'({data.upper()}) 📊 Выберите ваш уровень: 🔽',
+            'en': f'({data.upper()}) 📊 Please select your level: 🔽'}
 
     await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
                                 text=text.get(language), reply_markup=await month_audio())
@@ -2215,11 +2530,9 @@ async def audio_level2(callback_query: CallbackQuery, state: FSMContext):
     data3 = await state.get_data()
     data = data3.get('audio_home')
     language = await get_user_language(callback_query.from_user.id)
-    text = {
-        'uz': f'{data.upper()} audioni olish uchun oyingizni tanlang 🎧',
-        'ru': f'{data.upper()} для получения аудио выберите вашу игру 🎧',
-        'en': f'{data.upper()} to get the audio, select your game 🎧'
-    }
+    text = {'uz': f'{data.upper()} audioni olish uchun oyingizni tanlang 🎧',
+            'ru': f'{data.upper()} для получения аудио выберите вашу игру 🎧',
+            'en': f'{data.upper()} to get the audio, select your game 🎧'}
     await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
                                 text=text.get(language), reply_markup=await audio_month(language, data))
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
@@ -2283,33 +2596,26 @@ async def result(callback_query: CallbackQuery):
     language = await get_user_language(callback_query.from_user.id)
     data = callback_query.data.split('_')[1]
     if data == 'English':
-        await send_certificate(bot, callback_query.from_user.id, callback_query,language)
+        await send_certificate(bot, callback_query.from_user.id, callback_query, language)
     try:
         await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id)
-        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id-1)
+        await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 1)
         await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
     except TelegramBadRequest as e:
         pass
 
 
-
 @dp.callback_query(F.data.startswith('delete_result_'))
-async def delete_resultantly(callback_query:CallbackQuery):
+async def delete_resultantly(callback_query: CallbackQuery):
     language = await get_user_language(callback_query.from_user.id)
     data = callback_query.data.split('_')[2]
-    text = {
-        'uz': '⚠️ Siz bu maʼlumotni o‘chirishni xohlaysizmi? 🗑️',
-        'ru': '⚠️ Вы действительно хотите удалить эту информацию? 🗑️',
-        'en': '⚠️ Are you sure you want to delete this information? 🗑️'
-    }
+    text = {'uz': '⚠️ Siz bu maʼlumotni o‘chirishni xohlaysizmi? 🗑️',
+            'ru': '⚠️ Вы действительно хотите удалить эту информацию? 🗑️',
+            'en': '⚠️ Are you sure you want to delete this information? 🗑️'}
 
     try:
-        await bot.edit_message_caption(
-            message_id=callback_query.message.message_id,
-            caption=text[language],
-            chat_id=callback_query.from_user.id,
-            reply_markup=await keyboard(language, data)
-        )
+        await bot.edit_message_caption(message_id=callback_query.message.message_id, caption=text[language],
+                                       chat_id=callback_query.from_user.id, reply_markup=await keyboard(language, data))
     except TelegramBadRequest as e:
         print(f"Failed to edit message: {e}")
 
@@ -2318,8 +2624,7 @@ async def delete_resultantly(callback_query:CallbackQuery):
 async def return_result(callback_query: CallbackQuery):
     language = await get_user_language(callback_query.from_user.id)
     certificate = await image_send_edit_to_delete(callback_query.data.split('_')[2])
-    text = (
-            f"📋 Certificate Information:\n\n"
+    text = (f"📋 Certificate Information:\n\n"
             f"👤 Full Name: {certificate.fullname}\n"
             f"🏅 Band Score: {certificate.Overall_Band}\n\n"
             f"🗣 Speaking: {certificate.speaking}\n"
@@ -2328,28 +2633,24 @@ async def return_result(callback_query: CallbackQuery):
             f"📖 Reading: {certificate.reading}\n\n"
             f"✨Smart English\n<a href='http://instagram.com/smart.english.official'>Instagram</a>|<a href='https://t.me/SMARTENGLISH2016'>Telegram</a>|<a href='https://www.youtube.com/channel/UCu8wC4sBtsVK6befrNuN7bw'>YouTube</a>|<a href='https://t.me/Smart_Food_official'>Smart Food</a>|<a href='https://t.me/xusanboyman200'>Programmer</a>")
 
-    await bot.edit_message_caption(
-        chat_id=callback_query.from_user.id,
-        message_id=callback_query.message.message_id,
-        caption=text,
-        reply_markup=await delete_result_en(language,certificate.id,callback_query.message.message_id),
-        parse_mode='HTML'
-    )
+    await bot.edit_message_caption(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
+                                   caption=text, reply_markup=await delete_result_en(language, certificate.id,
+                                                                                     callback_query.message.message_id),
+                                   parse_mode='HTML')
+
 
 @dp.callback_query(F.data.startswith('yes_delete_'))
-async def yes_delete3(callback_query:CallbackQuery):
+async def yes_delete3(callback_query: CallbackQuery):
     language = await get_user_language(callback_query.from_user.id)
     await delete_results_en(callback_query.data.split('_')[2])
-    text = {
-        'uz':'Natija muaffaqiyatli ochirildi :tick',
-        'ru':'Natija muaffaqiyatli ochirildi :tick',
-        'en':'Natija muaffaqiyatli ochirildi :tick',
-    }
+    text = {'uz': 'Natija muaffaqiyatli ochirildi :tick', 'ru': 'Natija muaffaqiyatli ochirildi :tick',
+            'en': 'Natija muaffaqiyatli ochirildi :tick', }
     try:
         await callback_query.answer(text=text.get(language))
         await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
     except TelegramBadRequest as e:
         pass
+
 
 # ------------------------------------Hire worker-----------------------------------------------------------------------#
 @dp.callback_query(F.data.startswith('hire_'))
@@ -2547,7 +2848,7 @@ async def confirm3(callback_query: CallbackQuery, state: FSMContext):
             'en': "📲 If you need us, we will contact you via 🤖 the bot.", }
     text2 = {'uz': '🏠 Bosh menu', 'ru': '🏠 Bosh menu', 'en': '🏠 Bosh menu', }
     await bot.send_message(chat_id=callback_query.message.chat.id, text=text.get(language),
-                           reply_markup=await InlineKeyboardMarkup(inline_keyboard=[
+                           reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                                [InlineKeyboardButton(text=text2.get(language), callback_data='menu_')]]))
     try:
         await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
@@ -2613,7 +2914,7 @@ async def Complains_messages(message: Message, state: FSMContext):
     data = await state.get_data()
     teacher_name = data.get('teacher_name')
     teacher = data.get('teacher_type')
-    text = {'uz': (f"⚠️ Siz {teacher_name} ({teacher.capitalize()})ga shikoyat yubordingiz:\n"
+    text = {'uz': (f"⚠️ Siz {teacher_name} ({teacher.capitalize()})ga shikoyatgiz:\n"
                    f"💬 {message.text}"), 'ru': (f"⚠️ Вы отправили жалобу на {teacher_name} ({teacher.capitalize()}):\n"
                                                 f"💬 {message.text}"),
             'en': (f"⚠️ You have sent a complaint to {teacher_name} ({teacher.capitalize()}):\n"
@@ -2629,19 +2930,16 @@ async def complain32(callback_query: CallbackQuery, state: FSMContext):
     teacher_name = data.get('teacher_name')
     teacher = data.get('teacher_type')
     message = data.get('message')
-    text2 = {
-        'uz': 'Sizning xabaringiz @SEOM2016 managerga yuborildi.\nSizning xabaringiz 💯 xavfsiz va sizning kimligingiz sir saqlanadi.',
-        'ru': 'Ваше сообщение отправлено @SEOM2016 менеджеру.\nВаше сообщение 💯 безопасно, и ваша личность будет сохранена в тайне.',
-        'en': 'Your message has been sent to the @SEOM2016 manager.\nYour message is 💯 safe, and your identity will remain confidential.'}
     text = {'uz': ("✅ Sizning xabaringiz @SEOM2016 managerga yuborildi.\n"
                    "🔒 Sizning xabaringiz 💯 xavfsiz va 🕵️‍♂️ sizning kimligingiz sir saqlanadi."),
             'ru': ("✅ Ваше сообщение отправлено @SEOM2016 менеджеру.\n"
                    "🔒 Ваше сообщение 💯 безопасно, и 🕵️‍♂️ ваша личность будет сохранена в тайне."),
             'en': ("✅ Your message has been sent to the @SEOM2016 manager.\n"
                    "🔒 Your message is 💯 safe, and 🕵️‍♂️ your identity will remain confidential.")}
+    menu = {'uz': '🏠 Bosh menu', 'ru': '🏠 Bosh menu', 'en': '🏠 Bosh menu', }
     await bot.send_message(chat_id=callback_query.from_user.id, text=text.get(language),
                            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                               [InlineKeyboardButton(text=text2.get(language), callback_data='menu_')]]))
+                               [InlineKeyboardButton(text=menu.get(language), callback_data='menu_')]]))
     text3 = {
         'uz': (f"🛑 #shikoyat {'@' + callback_query.from_user.username if callback_query.from_user.username else ''}\n\n"
                f"👨‍🏫 {teacher.capitalize()} {teacher_name.capitalize()} ga\n"
@@ -2655,7 +2953,387 @@ async def complain32(callback_query: CallbackQuery, state: FSMContext):
     await bot.send_message(chat_id=await manager(), text=text3.get(language))
     await state.set_state(Complain.start)
     await state.clear()
+    await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id)
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+
+
+
+# ------------------------------------change users role-----------------------------------------------------------------#
+@dp.message(Command('admin'))
+async def admin(message: Message):
+    language = await get_user_language(message.from_user.id)
+    admin = await manager()
+    if admin==message.from_user.id:
+        users = await all_users(message.from_user.id)
+        for user in users:
+            text = {'uz': f"Foydalanuvchining telegram ismi: {user.tg_name[:10]}\n"
+                          f"Telegram usernamei: {'@' + user.tg_username if user.tg_username else 'mavjud emas'}\n"
+                          f"FIO 📝: {user.FIO}\n"
+                          f"Telefon raqami 📞: {user.tg_number}\n"
+                          f"Tugilgan yili 🎂: {user.born_year}\n"
+                          f"Jinsi 🚻: {user.gender}\n"
+                          f"Darajasi: {user.role}\n"
+                          f"Qachon qo\'shilgan: {user.register_time}",
+
+                'ru': f"Телеграм-имя пользователя: {user.tg_name[:10]}\n"
+                      f"Телеграм-username: {'@' + user.tg_username if user.tg_username else 'не доступен'}\n"
+                      f"ФИО 📝: {user.FIO}\n"
+                      f"Номер телефона 📞: {user.tg_number}\n"
+                      f"Год  🎂: {user.born_year}\n"
+                      f"Пол 🚻: {user.gender}",
+
+                'en': f"User's Telegram name: {user.tg_name[:10]}\n"
+                      f"Telegram username: {'@' + user.tg_username if user.tg_username else 'not available'}\n"
+                      f"Full Name 📝: {user.FIO}\n"
+                      f"Phone Number 📞: {user.tg_number}\n"
+                      f"Year of Birth 🎂: {user.born_year}\n"
+                      f"Gender 🚻: {user.gender}", }
+            await message.answer(text=text.get(language),
+                                 reply_markup=await change_user_role(language, user.role, user.id))
+        language = await get_user_language(message.from_user.id)
+        await bot.send_message(chat_id=message.from_user.id,
+                               text={"ru": "ru", "en": "en", "uz": "Bosh menu"}.get(language, "en"),
+                               reply_markup=await home(language))
+        await bot.delete_message(message_id=message.message_id, chat_id=message.from_user.id)
+        await delete_previous_messages(message.message_id, message.from_user.id)
+    else:
+        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id)
+
+
+@dp.callback_query(F.data.startswith('user_role_'))
+async def changer_role(callback_query: CallbackQuery):
+    language = await get_user_language(callback_query.from_user.id)
+    user_id = callback_query.data.split('_')[2]
+    role = callback_query.data.split('_')[3]
+    await changer_user_role(user_id, role)
+    user = await get_single_role(user_id)
+    await callback_query.answer(
+        text=f"Siz {user.tg_name[:10]} ni darajasini {role} ga muaffaqiyat bilan o'zgartirdingiz ✅", show_alert=True)
+
+    # Prepare the updated text based on the language
+    text = {'uz': (f"Foydalanuvchining telegram ismi: {user.tg_name[:10]}\n"
+                   f"Telegram usernamei: {'@' + user.tg_username if user.tg_username else 'mavjud emas'}\n"
+                   f"FIO 📝: {user.FIO}\n"
+                   f"Telefon raqami 📞: {user.tg_number}\n"
+                   f"Tugilgan yili 🎂: {user.born_year}\n"
+                   f"Jinsi 🚻: {user.gender}\n"
+                   f"Darajasi:⚠️⚠️⚠️ {user.role} ⚠️⚠️⚠️\n"
+                   f"Qachon qo'shilgan: {str(user.register_time)}"),
+        'ru': (f"Телеграм-имя пользователя: {user.tg_name[:10]}\n"
+               f"Телеграм-username: {'@' + user.tg_username if user.tg_username else 'не доступен'}\n"
+               f"ФИО 📝: {user.FIO}\n"
+               f"Номер телефона 📞: {user.tg_number}\n"
+               f"Год 🎂: {user.born_year}\n"
+               f"Darajasi :⚠️⚠️⚠️ {user.role} ⚠️⚠️⚠️\n"
+               f"Пол 🚻: {user.gender}"), 'en': (f"User's Telegram name: {user.tg_name[:10]}\n"
+                                                f"Telegram username: {'@' + user.tg_username if user.tg_username else 'not available'}\n"
+                                                f"Full Name 📝: {user.FIO}\n"
+                                                f"Phone Number 📞: {user.tg_number}\n"
+                                                f"Year of Birth 🎂: {user.born_year}\n"
+                                                f"Darajasi :⚠️⚠️⚠️ {user.role} ⚠️⚠️⚠️\n"
+                                                f"Gender 🚻: {user.gender}")}
+
+    # Edit the existing message to show the updated details
+    await bot.edit_message_text(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id,
+        text=text.get(language), reply_markup=await change_user_role(language, user.role, user.id))
+
+
+# ------------------------------------ Settings ------------------------------------------------------------------------#
+@dp.callback_query(F.data.startswith('settings'))
+async def settings(callback_query: CallbackQuery):
+    language = await get_user_language(callback_query.from_user.id)
+    text = {'uz': '🔧 Sozlamalar',  # Settings - 🔧 (Wrench)
+        'ru': '🔧 Настройки',  # Settings - 🔧 (Wrench)
+        'en': '🔧 Settings'  # Settings - 🔧 (Wrench)
+    }
+    await bot.edit_message_text(message_id=callback_query.message.message_id, text=text.get(language),
+                                chat_id=callback_query.from_user.id, reply_markup=await settings_kb(language))
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+
+# ------------------------------------Full_registration-----------------------------------------------------------------#
+@dp.callback_query(F.data.startswith('fregister_'))
+async def fregister(callback_query: CallbackQuery,state:FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    text = {
+        'uz': '📝 FIO yingizni kiriting:\n📌 Misol uchun: Abdulkhaev Xusanboy Solijonovich',
+        # Enter Full Name - 📝 (Writing)
+        'ru': '📝 Введите ваше ФИО:\n📌 Например: Абдулхаев Хусанбой Солиджонович',  # Enter Full Name - 📝 (Writing)
+        'en': '📝 Enter your Full Name:\n📌 For example: Abdulkhaev Xusanboy Solijonovich'
+        # Enter Full Name - 📝 (Writing)
+    }
+    await bot.edit_message_text(message_id=callback_query.message.message_id, text=text.get(language),chat_id=callback_query.from_user.id)
+    await state.set_state(Register_full.fullname)
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+
+@dp.message(Register_full.fullname)
+async def full_name_register_def(message:Message, state:FSMContext):
+    language = await get_user_language(message.from_user.id)
+    a = False
+    for i in message.text:
+        if i in str([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]):
+            a = True
+            break
+    c = message.text.split(' ')
+    if len(c) != 3:
+        a = True
+    else:
+        a = False
+    if a:
+        await state.set_state(Register_full.fullname)
+        match language:
+            case 'uz':
+                await bot.send_message(chat_id=message.from_user.id,
+                                       text='Iltimos, toʻliq ismingizni kiriting va sonlardan foydalanmang')
+            case 'ru':
+                await bot.send_message(chat_id=message.from_user.id,
+                                       text='Пожалуйста, введите полное имя и не используйте цифры')
+            case 'en':
+                await bot.send_message(chat_id=message.from_user.id,
+                                       text='Please enter your full name without using numbers')
+        return
+    text = {
+            'uz': '👇 Yoshni tanlang:',
+            'ru': '👇 Выберите ваш возраст:',
+            'en': '👇 Select your age:'
+        }
+    await state.update_data(fullname=message.text)
+    await state.set_state(Register_full.start)
+    await bot.send_message(text=text.get(language), chat_id=message.from_user.id, reply_markup=await fregister_year(1))
+    await delete_previous_messages(message.message_id, message.from_user.id)
+    await bot.delete_message(message_id=message.message_id, chat_id=message.from_user.id)
+
+
+@dp.callback_query(F.data.startswith('fullname_f'))
+async def full_name_register_def(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    text = {
+        'uz': '👇 Yoshni tanlang:',
+        'ru': '👇 Выберите ваш возраст:',
+        'en': '👇 Select your age:'
+    }
+    await bot.edit_message_text(
+        text=text.get(language),
+        chat_id=callback_query.from_user.id,
+        message_id=callback_query.message.message_id,
+        reply_markup=await fregister_year(1)
+    )
+    await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+
+
+
+@dp.callback_query(F.data.startswith('yfregister_year_'))
+async def hyear3_get(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    text = {
+        'uz': '📅 Tug‘ilgan oyingizni tanlang:',  # Choose your birth month - 📅 (Calendar)
+        'ru': '📅 Выберите ваш месяц рождения:',  # Choose your birth month - 📅 (Calendar)
+        'en': '📅 Select your birth month:'  # Choose your birth month - 📅 (Calendar)
+    }
+    await bot.edit_message_text(message_id=callback_query.message.message_id,text=text.get(language), chat_id=callback_query.from_user.id,
+                           reply_markup=await fmonth(language))
+    if len(callback_query.data.split('_')) == 4:
+        await state.update_data(year=callback_query.data.split('_')[2])
+    await delete_previous_messages(callback_query.message.message_id,callback_query.from_user.id)
+
+
+
+@dp.callback_query(F.data.startswith('ypfregister_year2_'))
+async def usual2(callback_query: CallbackQuery):
+    language = await get_user_language(callback_query.from_user.id)
+    data = callback_query.data.split('_')[2]
+    text = {
+        'uz': '👇 Yoshni tanlang:',
+        'ru': '👇 Выберите ваш возраст:',
+        'en': '👇 Select your age:'
+    }
+    await bot.edit_message_text(text=text.get(language), chat_id=callback_query.from_user.id,
+                                reply_markup=await fregister_year(int(data)), message_id=callback_query.message.message_id)
+    await delete_previous_messages(callback_query.message.message_id,callback_query.from_user.id)
+
+
+@dp.callback_query(F.data.startswith('fmonth_'))
+async def month_callback(callback_query: CallbackQuery, state: FSMContext):
+    language = await get_user_language(tg_id=callback_query.from_user.id)
+    data  = await state.get_data()
+    if len(callback_query.data.split('_')) == 3:
+        month_name = callback_query.data.split('_')[2][2:]
+        month = callback_query.data.split('_')[1]
+        await state.update_data(fake_month=month_name)
+        await state.update_data(month=month)
+    else:
+        month_name  = data.get('fake_month')
+        month  = data.get('month')
+    years = await state.get_data()
+    year = years.get('year')
+    text = {
+        'uz': f'{month_name} oyi uchun kunni tanlang:',  # For Uzbek
+        'ru': f'Выберите день для месяца {month_name}:',  # For Russian
+        'en': f'Choose the day for {month_name}:'  # For English
+    }
+    await bot.edit_message_text(message_id=callback_query.message.message_id,
+                                        chat_id=callback_query.from_user.id, text=text.get(language),
+                                        reply_markup=await fdays(month, year))
+    await delete_previous_messages(callback_query.message.message_id,callback_query.from_user.id)
+
+@dp.callback_query(F.data.startswith('fday_'))
+async def day_callback(callback_query: CallbackQuery, state: FSMContext):
+    if len(callback_query.data.split('_')) == 3:
+        day = callback_query.data.split('_')[1]
+        await state.update_data(day=day)
+    language = await get_user_language(tg_id=callback_query.from_user.id)
+    text = {
+        'uz': '📱 Telefon raqamingizni yozing yoki pasdagi tugmani bosing:',  # Uzbek
+        'ru': '📱 Напишите ваш номер телефона или нажмите кнопку ниже:',  # Russian
+        'en': '📱 Enter your phone number or press the button below:'  # English
+    }
+    await state.set_state(Register_full.number)
+    await bot.send_message(text=text.get(language), chat_id=callback_query.from_user.id,reply_markup=await share_phone_number(language))
+    await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
+    await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
+
+@dp.message(Register_full.number)
+async def Register_full_number(message: Message, state: FSMContext):
+    language = await get_user_language(message.from_user.id)
+    if message.contact:
+        await state.update_data(number=message.contact.phone_number)
+        match language:
+            case 'uz':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await fgender(language))
+            case 'ru':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await fgender(language))
+            case 'en':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await fgender(language))
+        await state.set_state(Register.start)
+        await delete_previous_messages(message.message_id, message.from_user.id)
+        await bot.delete_message(message_id=message.message_id,chat_id=message.from_user.id)
+    if message.text:
+        if message.text[:1] == '🔙':
+            data = await state.get_data()
+            month_name = data.get('fake_month')
+            month = data.get('month')
+            year = data.get('year')
+            text = {
+                'uz': f'{month_name} oyi uchun kunni tanlang:',
+                'ru': f'Выберите день для месяца {month_name}:',
+                'en': f'Choose the day for {month_name}:'
+            }
+            await bot.send_message(
+                chat_id=message.from_user.id,
+                text=text.get(language),
+                reply_markup=await fdays(month, year)
+            )
+            await bot.delete_message(message_id=message.message_id - 1, chat_id=message.from_user.id)
+            return
+        if not message.text[1:].isdigit() or 9 <= len(str(message.text)) >= 13:
+            await state.set_state(Register.number)
+            match language:
+                case 'uz':
+                    await bot.send_message(chat_id=message.from_user.id,
+                                           text='Iltimos telfon raqamingizda faqat sonlardan foydalaning',
+                                           reply_markup=await share_phone_number(language))
+                case 'ru':
+                    await bot.send_message(chat_id=message.from_user.id,
+                                           text='Iltimos telfon raqamingizni 998 90 123 45 67 korinishida yoki 901234567 korinishida yuboring  \nHarf va maxsus belgilardan foydalanmang',
+                                           reply_markup=await share_phone_number(language))
+                case 'en':
+                    await bot.send_message(chat_id=message.from_user.id,
+                                           text='Iltimos telfon raqamingizni 998 90 123 45 67 korinishida yoki 901234567 korinishida yuboring  \nHarf va maxsus belgilardan foydalanmang',
+                                           reply_markup=await share_phone_number(language))
+            return
+        if message.text[0] == '+':
+            await state.update_data(number=message.text)
+        else:
+            await state.update_data(number=f'+{message.text}')
+
+        match language:
+            case 'uz':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await fgender(language))
+            case 'ru':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await fgender(language))
+            case 'en':
+                await bot.send_message(chat_id=message.from_user.id, text='Iltimos jinsingizni tanlang',
+                                       reply_markup=await fgender(language))
+        await state.set_state(Register.start)
+        await delete_previous_messages(message.message_id, message.from_user.id)
+        await bot.delete_message(message_id=message.message_id,chat_id=message.from_user.id)
+
+
+@dp.callback_query(F.data.startswith('fgender_'))
+async def register_gender(callback_query:CallbackQuery,state:FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    if len(callback_query.data.split('_')) == 3:
+        await state.update_data(gender=callback_query.data.split('_')[1])
+        await state.update_data(fake_gender= callback_query.data.split('.')[1])
+    data = await state.get_data()
+    full_name = data.get('fullname')
+    year = data.get('year')
+    month_name = data.get('fake_month')
+    month = data.get('month')
+    day = data.get('day')
+    number = data.get('number')
+    gender = data.get('gender')
+    fake_gender = data.get('fake_gender')
+    born_year = f'{day:02}/{month:02}/{year:04}'
+    text = {
+        'uz': f'👤 Ism-sharifingiz: {full_name}\n'
+              f'📅 Tugilgan yilingiz: {year}\n'
+              f'⭐ Tugilgan oyingiz: {month_name}\n'
+              f'🎉 Tugilgan kuningiz: {day}\n'
+              f'📞 Telefon raqamingiz: {number}\n'
+              f'🚻 Jinsingiz: {fake_gender}\n',
+
+        'ru': f'👤 Ваше имя: {full_name}\n'
+              f'📅 Год рождения: {year}\n'
+              f'⭐ Месяц рождения: {month_name}\n'
+              f'🎉 День рождения: {day}\n'
+              f'📞 Ваш номер телефона: {number}\n'
+              f'🚻 Ваш пол: {fake_gender}\n',
+
+        'en': f'👤 Your name: {full_name}\n'
+              f'📅 Year of birth: {year}\n'
+              f'⭐ Month of birth: {month_name}\n'
+              f'🎉 Day of birth: {day}\n'
+              f'📞 Your phone number: {number}\n'
+              f'🚻 Your gender: {fake_gender}\n'
+    }
+    await bot.edit_message_text(message_id=callback_query.message.message_id,chat_id=callback_query.from_user.id,text=text.get(language),reply_markup=await fconifim(language))
+
+
+@dp.callback_query(F.data.startswith('fconifim_'))
+async def salom_dunyo(callback_query:CallbackQuery,state:FSMContext):
+    language = await get_user_language(callback_query.from_user.id)
+    data = await state.get_data()
+    full_name = data.get('fullname')
+    year = data.get('year')
+    month = data.get('month')
+    day = data.get('day')
+    number = data.get('number')
+    gender = data.get('gender')
+    born_year = f'{day:02}/{month:02}/{year:04}'
+    text = {
+        'ru': "Главное меню",  # Text in Russian
+        'en': "Main Menu",  # Text in English
+        'uz': "Bosh menu"  # Text in Uzbek
+    }
+    await add_user_full(tg_id=callback_query.from_user.id,username=callback_query.from_user.username if callback_query.from_user.username else 'no user name',name=callback_query.from_user.first_name,number=number,fullname=full_name,born_year=born_year,gender=gender)
+    await bot.edit_message_text(message_id=callback_query.message.message_id,chat_id=callback_query.from_user.id,text=text.get(language),reply_markup=await home(language))
+    await delete_previous_messages(callback_query.message.message_id,callback_query.from_user.id)
+
+
+@dp.callback_query(F.data.startswith('lan2_'))
+async def get_user_lanuage_nothing(callback_query:CallbackQuery):
+    langauge = await get_user_language(callback_query.from_user.id)
+    text = {
+        'ru': "🇷🇺: Выберите ваш язык 🗣️",
+        'en': "🇬🇧: Select your preferred language 🗣️",
+        'uz': "🇺🇿: Biladigan tilingizni tanlang 🗣️"
+    }
+    await bot.edit_message_text(message_id=callback_query.message.message_id,chat_id=callback_query.from_user.id,text=text.get(langauge),reply_markup=await flanguages(langauge))
 
 
 # ------------------------------------Middleware------------------------------------------------------------------------#
