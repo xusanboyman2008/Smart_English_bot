@@ -2,7 +2,7 @@ import asyncio
 import os
 import traceback
 from datetime import datetime
-from time import localtime, sleep
+from time import localtime
 from typing import Callable, Dict, Any, Awaitable
 from aiogram import Bot, Dispatcher, F, BaseMiddleware
 from aiogram.exceptions import TelegramBadRequest
@@ -2870,6 +2870,7 @@ async def complain(callback_query: CallbackQuery, state: FSMContext):
     await bot.edit_message_text(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id,
                                 text=text.get(language), reply_markup=await compilationkb(language))
     await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+    await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
 
 
 @dp.callback_query(F.data.startswith('c_teacher_'))
@@ -2882,6 +2883,7 @@ async def complain_teacher(callback_query: CallbackQuery, state: FSMContext):
 
     await bot.send_message(text=text.get(language), chat_id=callback_query.from_user.id)
     await state.set_state(Complain.teacher_name)
+    await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
 
 
 @dp.message(Complain.teacher_name)
