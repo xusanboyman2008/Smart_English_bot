@@ -16,7 +16,7 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase
 
-token = '7880846241:AAEqkCsnZaqEXgsY6rtK-Ra7RhVCNrySZC0'#https://t.me/Smart_english_xusanboyman_robot#'7874928619:AAGq2IJMNjvUjpJ2vU3N9L85frcGhhykDKU' #@xusanboyman_bot
+token = '7874928619:AAGq2IJMNjvUjpJ2vU3N9L85frcGhhykDKU'
 bot = Bot(token=token)
 dp = Dispatcher()
 
