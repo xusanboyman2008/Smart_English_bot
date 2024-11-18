@@ -1442,7 +1442,7 @@ async def fgender(language):
     row = []
 
     for i in menu.get(language):
-        row.append(InlineKeyboardButton(text=f'{i.split('.')[1]}', callback_data=f'{i}'))
+        row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i}'))
         if len(row) == 2:
             inline_button.append(row)
             row = []
