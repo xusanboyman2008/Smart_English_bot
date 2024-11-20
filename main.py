@@ -3038,11 +3038,12 @@ async def mlevel_(callback_query: CallbackQuery):
 @dp.message(Command('admin'))
 async def admin(message: Message):
     language = await get_user_language(message.from_user.id)
-    admin = await manager()
-    if admin == message.from_user.id:
-        users = await all_users(message.from_user.id)
-        for user in users:
-            text = {'uz': f"Foydalanuvchining telegram ismi: {user.tg_name[:10]}\n"
+    admins = await manager()
+    for admin in admins:
+        if admin == message.from_user.id:
+            users = await all_users(message.from_user.id)
+            for user in users:
+                text = {'uz': f"Foydalanuvchining telegram ismi: {user.tg_name[:10]}\n"
                           f"Telegram usernamei: {'@' + user.tg_username if user.tg_username else 'mavjud emas'}\n"
                           f"FIO 📝: {user.FIO}\n"
                           f"Telefon raqami 📞: {user.tg_number}\n"
@@ -3064,16 +3065,16 @@ async def admin(message: Message):
                           f"Phone Number 📞: {user.tg_number}\n"
                           f"Year of Birth 🎂: {user.born_year}\n"
                           f"Gender 🚻: {user.gender}", }
-            await message.answer(text=text.get(language),
-                                 reply_markup=await change_user_role(language, user.role, user.id))
-        language = await get_user_language(message.from_user.id)
-        await bot.send_message(chat_id=message.from_user.id,
-                               text={"ru": "ru", "en": "en", "uz": "Bosh menu"}.get(language, "en"),
-                               reply_markup=await home(language))
-        await bot.delete_message(message_id=message.message_id, chat_id=message.from_user.id)
-        await delete_previous_messages(message.message_id, message.from_user.id)
-    else:
-        await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id)
+                await message.answer(text=text.get(language),
+                                     reply_markup=await change_user_role(language, user.role, user.id))
+            language = await get_user_language(message.from_user.id)
+            await bot.send_message(chat_id=message.from_user.id,
+                                   text={"ru": "ru", "en": "en", "uz": "Bosh menu"}.get(language, "en"),
+                                   reply_markup=await home(language))
+            await bot.delete_message(message_id=message.message_id, chat_id=message.from_user.id)
+            await delete_previous_messages(message.message_id, message.from_user.id)
+        else:
+            await bot.delete_message(chat_id=message.from_user.id, message_id=message.message_id)
 
 
 @dp.callback_query(F.data.startswith('user_role_'))
