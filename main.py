@@ -2371,7 +2371,8 @@ async def clled_(callback_query:CallbackQuery):
     }
     await set_register_state_yes(callback_query.data.split('_')[1],data='Yes')
     await bot.send_message(callback_query.message.chat.id,text=text.get(language))
-    await
+
+
 @dp.callback_query(F.data.startswith('clled_'))
 # --------------------------------  Add Information's ------------------------------------------------------------------#
 @dp.message(Command('add_result'))
