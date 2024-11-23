@@ -3038,11 +3038,11 @@ async def is_certificate2(callback_query: CallbackQuery, state: FSMContext):
         data = await state.get_data()
         name = data.get('name')
         text2 = {'uz': (f"👤 Ism sharifingiz: {name}\n🗓️ Tug'ilgan yilingiz: {data.get('year')}\n"
-                        f"🗂️ Tanlagan kasbingiz: {data.get('state_fake')}\n🏅 Tajribangiz: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
+                        f"🗂️ Tanlagan kasbingiz: {data.get('state_fake')}\n🏅 Tajribangiz: {'Bor' if data.get('experience') == 'Yes' else 'Yo`q'}"),
                  'ru': (f"👤 Ваше имя: {name}\n🗓️ Год вашего рождения: {data.get('year')}\n"
-                        f"🗂️ Ваша выбранная профессия: {data.get('state_fake')}\n🏅 Ваш опыт: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}"),
+                        f"🗂️ Ваша выбранная профессия: {data.get('state_fake')}\n🏅 Ваш опыт: {'Bor' if data.get('experience') == 'Yes' else 'Yo`q'}"),
                  'en': (f"👤 Your full name: {name}\n🗓️ Year of birth: {data.get('year')}\n"
-                        f"🗂️ Chosen profession: {data.get('state_fake')}\n🏅 Experience: {'Bor' if data.get('experience') == 'Yes' else 'Yo\'q'}")}
+                        f"🗂️ Chosen profession: {data.get('state_fake')}\n🏅 Experience: {'Bor' if data.get('experience') == 'Yes' else 'Yo`q'}")}
         await bot.edit_message_text(message_id=callback_query.message.message_id, text=text2.get(language),
                                     chat_id=callback_query.from_user.id, reply_markup=await conifim_hire(language))
 
