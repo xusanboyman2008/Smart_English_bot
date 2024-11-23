@@ -462,7 +462,7 @@ class Certificate(StatesGroup):
 
 # --------------------------------------KEYBOARDS-----------------------------------------------------------------------#
 async def languages():
-    lan = ['uz🇺🇿 O\'zbek tili 🇺🇿', 'ru🇷🇺 Russian 🇷🇺', 'en🇺🇸 English 🇺🇸']
+    lan = ['uz🇺🇿 O`zbek tili 🇺🇿', 'ru🇷🇺 Russian 🇷🇺', 'en🇺🇸 English 🇺🇸']
     inline_button = []
     row = []
 
@@ -1267,12 +1267,12 @@ async def yhire(page):
 
 async def hexperience(language, data):
     if data == 'experience':
-        text = {'uz': ['hexperience_yes_.✅ Ha', 'hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'type_.🔙 Orqaga'],
+        text = {'uz': ['hexperience_yes_.✅ Ha', 'hexperience_no_.❌ Yo`q', 'menu_.🏠 Bosh menu', 'type_.🔙 Orqaga'],
                 'ru': ['hexperience_yes_.✅ Да', 'hexperience_no_.❌ Нет', 'menu_.🏠 Главное меню', 'type_.🔙 Назад'],
                 'en': ['hexperience_yes_.✅ Yes', 'hexperience_no_.❌ No', 'menu_.🏠 Main menu', 'type_.🔙 Back']}
     else:
         text = {
-            'uz': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo\'q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'],
+            'uz': ['is/certificate_yes_.✅ Ha', 'is/hexperience_no_.❌ Yo`q', 'menu_.🏠 Bosh menu', 'yhire_.🔙 Orqaga'],
             'ru': ['is/certificate_yes_.✅ Да', 'is/hexperience_no_.❌ Нет', 'menu_.🏠 Главное меню', 'yhire_.🔙 Назад'],
             'en': ['is/certificate_yes_.✅ Yes', 'is/hexperience_no_.❌ No', 'menu_.🏠 Main menu', 'yhire_.🔙 Back']}
 
@@ -1291,7 +1291,7 @@ async def hexperience(language, data):
 
 
 async def conifim_hire(language):
-    text = {'uz': ['cconifim_.✅ Hammasi tog\'ri', 'hire_.♻️ Boshqatan', 'menu_.🏠 Bosh menu'],
+    text = {'uz': ['cconifim_.✅ Hammasi tog`ri', 'hire_.♻️ Boshqatan', 'menu_.🏠 Bosh menu'],
             'ru': ['cconifim_.✅ Все верно', 'hire_.♻️ Еще раз', 'menu_.🏠 Главное меню'],
             'en': ['cconifim_.✅ Everything is correct', 'hire_.♻️ Try again', 'menu_.🏠 Main menu']}
 
@@ -1614,7 +1614,7 @@ async def fgender(language):
 
 
 async def fconifim(language):
-    text = {'uz': ['fconifim_.✅ Hammasi tog\'ri', 'fregister_.♻️ Boshqatan', 'menu_.🏠 Bosh menu'],
+    text = {'uz': ['fconifim_.✅ Hammasi tog`ri', 'fregister_.♻️ Boshqatan', 'menu_.🏠 Bosh menu'],
             'ru': ['fconifim_.✅ Все верно', 'fregister_.♻️ Еще раз', 'menu_.🏠 Главное меню'],
             'en': ['fconifim_.✅ Everything is correct', 'fregister_.♻️ Try again', 'menu_.🏠 Main menu']}
 
@@ -1649,7 +1649,7 @@ async def complain_level_manager(language, id):
 
 
 async def user_takes_call_or_not(language, data):
-    text = {'uz': [f'ywarned_yes_{data}.✅ Telfon qilishdi', f'ywarned_no_{data}.❌ Hech kim qong\'iroq qilmadi'],
+    text = {'uz': [f'ywarned_yes_{data}.✅ Telfon qilishdi', f'ywarned_no_{data}.❌ Hech kim qong`iroq qilmadi'],
             'ru': [f'ywarned_yes_{data}.✅ Позвонили', f'ywarned_no_{data}.❌ Никто не звонил'],
             'en': [f'ywarned_yes_{data}.✅ They called', f'ywarned_no_{data}.❌ No one called']}
 
@@ -1841,17 +1841,17 @@ async def courses(callback_query: CallbackQuery, state: FSMContext):
         case 'uz':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
                                         chat_id=callback_query.from_user.id,
-                                        text='Smart English o\'vmarkazidagi kurslardan birini tanlang',
+                                        text='Smart English o`vmarkazidagi kurslardan birini tanlang',
                                         reply_markup=await tuition(language))
         case 'ru':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
                                         chat_id=callback_query.from_user.id,
-                                        text='Smart English o\'vmarkazidagi kurslardan birini tanlang',
+                                        text='Smart English o`vmarkazidagi kurslardan birini tanlang',
                                         reply_markup=await tuition(language))
         case 'en':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
                                         chat_id=callback_query.from_user.id,
-                                        text='Smart English o\'vmarkazidagi kurslardan birini tanlang',
+                                        text='Smart English o`vmarkazidagi kurslardan birini tanlang',
                                         reply_markup=await tuition(language))
 
 
@@ -2214,13 +2214,13 @@ async def time(callback_query: CallbackQuery, state: FSMContext):
     match language:
         case 'uz':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                        chat_id=callback_query.from_user.id, text=(f'Sizning ma\'lumotlaringiz:\n'
-                                                                                   f'To\'liq ismingiz: {fullname}\n'
+                                        chat_id=callback_query.from_user.id, text=(f'Sizning ma`lumotlaringiz:\n'
+                                                                                   f'To`liq ismingiz: {fullname}\n'
                                                                                    f'Telefon raqamingiz: {number}\n'
                                                                                    f'Jinsingiz: {gender}\n'
-                                                                                   f'Tug\'ilgan yilingiz: {year} yil\n'
-                                                                                   f'Tug\'ilgan oyingiz: {month} oy\n'
-                                                                                   f'Tug\'ilgan kuningiz: {day} kun\n'
+                                                                                   f'Tug`ilgan yilingiz: {year} yil\n'
+                                                                                   f'Tug`ilgan oyingiz: {month} oy\n'
+                                                                                   f'Tug`ilgan kuningiz: {day} kun\n'
                                                                                    f'Kurs nomi: {course}\n'
                                                                                    f'Kurs vaqti: {time}'
 
@@ -2228,17 +2228,17 @@ async def time(callback_query: CallbackQuery, state: FSMContext):
                                         reply_markup=await confirmt(language, False))
         case 'ru':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                        chat_id=callback_query.from_user.id, text=(f'Sizning ma\'lumotlaringiz:\n'
-                                                                                   f'Tug\'ilgan yilingiz: {year}\n'
-                                                                                   f'Tug\'ilgan oyingiz: {month}\n'
-                                                                                   f'Tug\'ilgan kuningiz: {day}'),
+                                        chat_id=callback_query.from_user.id, text=(f'Sizning ma`lumotlaringiz:\n'
+                                                                                   f'Tug`ilgan yilingiz: {year}\n'
+                                                                                   f'Tug`ilgan oyingiz: {month}\n'
+                                                                                   f'Tug`ilgan kuningiz: {day}'),
                                         reply_markup=await confirmt(language, False))
         case 'en':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                        chat_id=callback_query.from_user.id, text=(f'Sizning ma\'lumotlaringiz:\n'
-                                                                                   f'Tug\'ilgan yilingiz: {year}\n'
-                                                                                   f'Tug\'ilgan oyingiz: {month}\n'
-                                                                                   f'Tug\'ilgan kuningiz: {day}'),
+                                        chat_id=callback_query.from_user.id, text=(f'Sizning ma`lumotlaringiz:\n'
+                                                                                   f'Tug`ilgan yilingiz: {year}\n'
+                                                                                   f'Tug`ilgan oyingiz: {month}\n'
+                                                                                   f'Tug`ilgan kuningiz: {day}'),
                                         reply_markup=await confirmt(language, False))
     await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
 
@@ -2267,14 +2267,14 @@ async def confirm(callback_query: CallbackQuery, state: FSMContext):
         for call_centres1 in await call_centre():
             await bot.send_message(chat_id=call_centres1,
                                    text=(f'#student\n❗️❗️❗️❗️ Telefon qilish kerak Smart English ❗️❗️❗️❗️❗️\n\n'
-                                         f'To\'liq ismi: {fullname}\n'
+                                         f'To`liq ismi: {fullname}\n'
                                          f'Telegram foydalanuvchi nomi: @{callback_query.from_user.username}\n'
                                          f'Telefon raqami: {number}\n'
                                          f'Jinsi: {gender}\n'
-                                         f'Tug\'ilgan yili: {year} yil\n'
-                                         f'Tug\'ilgan oyi: {month} oy\n'
+                                         f'Tug`ilgan yili: {year} yil\n'
+                                         f'Tug`ilgan oyi: {month} oy\n'
                                          f'Kurs darajasi: {level if level else "Kurs mavjud emas"}\n'
-                                         f'Tug\'ilgan kuni: {day} kun\n'
+                                         f'Tug`ilgan kuni: {day} kun\n'
                                          f'Kurs nomi: {course}\n'
                                          f'Kurs vaqti: {time}'),
                                    reply_markup=await call(number, callback_query.from_user.id, language))
@@ -2287,13 +2287,13 @@ async def confirm(callback_query: CallbackQuery, state: FSMContext):
         for call_centres in await call_centre():
             await bot.send_message(chat_id=await call_centres(),
                                    text=(f'❗️❗️❗️❗️ Telefon qilish kerak Smart English ❗️❗️❗️❗️❗️\n\n'
-                                         f'To\'liq ismi: {fullname}\n'
+                                         f'To`liq ismi: {fullname}\n'
                                          f'Telefon raqami: {number}\n'
                                          f'Jinsi: {gender}\n'
-                                         f'Tug\'ilgan yili: {year} yil\n'
-                                         f'Tug\'ilgan oyi: {month} oy\n'
+                                         f'Tug`ilgan yili: {year} yil\n'
+                                         f'Tug`ilgan oyi: {month} oy\n'
                                          f'Kurs darajasi: {level if level else "Kurs mavjud emas"}\n'
-                                         f'Tug\'ilgan kuni: {day} kun\n'
+                                         f'Tug`ilgan kuni: {day} kun\n'
                                          f'Kurs nomi: {course}\n'
                                          f'Kurs vaqti: {time}'),
                                    reply_markup=await call(number, callback_query.from_user.id, language))
@@ -2441,7 +2441,7 @@ async def call_comment(message: Message, state: FSMContext):
                 'ru': f'❓ Вы подтверждаете свой комментарий?\n\n📝 {message.text}',
                 'en': f'❓ Do you confirm your comment?\n\n📝 {message.text}', }
         await state.update_data(comment=message.text)
-        text2 = {'uz': '📞 Sizga Smart English tomonidan qong\'iroq qilindi, bundan habardormisiz?',
+        text2 = {'uz': '📞 Sizga Smart English tomonidan qong`iroq qilindi, bundan habardormisiz?',
                  'ru': '📞 Вам позвонили из Smart English, вы в курсе?',
                  'en': '📞 You received a call from Smart English, are you aware?'}
         language2 = await get_user_language(tg_id_user)
@@ -2478,7 +2478,7 @@ async def call4_confirm_yes(callback_query: CallbackQuery, state: FSMContext):
 async def broken2_(calllbac_Query: CallbackQuery):
     lanugage = await get_user_language(calllbac_Query.from_user.id)
     await delete_call(calllbac_Query.data.split('_')[1])
-    text = {'uz': '✅ Bu telefon raqam muvaffaqiyatli o\'chirib yuborildi', 'ru': '✅ Этот номер телефона успешно удалён',
+    text = {'uz': '✅ Bu telefon raqam muvaffaqiyatli o`chirib yuborildi', 'ru': '✅ Этот номер телефона успешно удалён',
             'en': '✅ This phone number has been successfully deleted'}
     await calllbac_Query.answer(text=text.get(lanugage))
     await delete_previous_messages(calllbac_Query.message.message_id, calllbac_Query.from_user.id)
@@ -2560,11 +2560,11 @@ async def fullname(message: Message, state: FSMContext):
     if message.text.isdigit():
         match language:
             case 'ru':
-                text = 'Certificat kimga tegishli ekanligini to\'liq yozing va raqamlardan foydalanmang \nMisol uchun: Akmaljon Khusanov'
+                text = 'Certificat kimga tegishli ekanligini to`liq yozing va raqamlardan foydalanmang \nMisol uchun: Akmaljon Khusanov'
             case 'en':
-                text = 'Certificat kimga tegishli ekanligini to\'liq yozing va raqamlardan foydalanmang \nMisol uchun: Akmaljon Khusanov'
+                text = 'Certificat kimga tegishli ekanligini to`liq yozing va raqamlardan foydalanmang \nMisol uchun: Akmaljon Khusanov'
             case _:
-                text = 'Certificat kimga tegishli ekanligini to\'liq yozing va raqamlardan foydalanmang \nMisol uchun: Akmaljon Khusanov'
+                text = 'Certificat kimga tegishli ekanligini to`liq yozing va raqamlardan foydalanmang \nMisol uchun: Akmaljon Khusanov'
         await message.answer(text=text)
         await state.set_state(Certificate.fullname)
         return
@@ -2841,15 +2841,15 @@ async def results(callback_query: CallbackQuery):
     language = await get_user_language(callback_query.from_user.id)
     if language == 'uz':
         await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                    text='Smart English o\'quv markazdagi kurslardan birini tanlang',
+                                    text='Smart English o`quv markazdagi kurslardan birini tanlang',
                                     chat_id=callback_query.from_user.id, reply_markup=await result_home(language))
     if language == 'ru':
         await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                    text='Smart English o\'quv markazdagi kurslardan birini tanlang',
+                                    text='Smart English o`quv markazdagi kurslardan birini tanlang',
                                     chat_id=callback_query.from_user.id, reply_markup=await result_home(language))
     if language == 'en':
         await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                    text='Smart English o\'quv markazdagi kurslardan birini tanlang',
+                                    text='Smart English o`quv markazdagi kurslardan birini tanlang',
                                     chat_id=callback_query.from_user.id, reply_markup=await result_home(language))
     try:
         await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id - 1)
@@ -3273,7 +3273,7 @@ async def admin(message: Message):
                               f"Tugilgan yili 🎂: {user.born_year}\n"
                               f"Jinsi 🚻: {user.gender}\n"
                               f"Darajasi: {user.role}\n"
-                              f"Qachon qo\'shilgan: {user.register_time}",
+                              f"Qachon qo`shilgan: {user.register_time}",
 
                         'ru': f"Телеграм-имя пользователя: {user.tg_name[:10]}\n"
                               f"Телеграм-username: {'@' + user.tg_username if user.tg_username else 'не доступен'}\n"
@@ -3315,7 +3315,7 @@ async def admin(message: CallbackQuery):
                               f"Tugilgan yili 🎂: {user.born_year}\n"
                               f"Jinsi 🚻: {user.gender}\n"
                               f"Darajasi: {user.role}\n"
-                              f"Qachon qo\'shilgan: {user.register_time}",
+                              f"Qachon qo`shilgan: {user.register_time}",
 
                         'ru': f"Телеграм-имя пользователя: {user.tg_name[:10]}\n"
                               f"Телеграм-username: {'@' + user.tg_username if user.tg_username else 'не доступен'}\n"
@@ -3394,11 +3394,11 @@ async def all_complains_(callback_query: CallbackQuery):
             'uz': (
                 f'📄 ID: {all_complain.id}\n'
                 f'👤 Shikoyatchi Telegram ID: {all_complain.complainer_tg_id}\n'
-                f'🧑‍🏫 Ayblanuvchi: {all_complain.teacher_type} o\'qituvchi {all_complain.to_whom}ga\n'
+                f'🧑‍🏫 Ayblanuvchi: {all_complain.teacher_type} o`qituvchi {all_complain.to_whom}ga\n'
                 f'✍️ Shikoyat: "{all_complain.text.capitalize()}"\n'
                 f'⚖️ Admin tomonidan shikoyat darajasi: '
-                f'{"❓ Hali belgilanmagan" if all_complain.level == "Not chosen" else "📊 O\'rtacha" if all_complain.level == "normal" else "🔥 Jiddiy"}\n\n'
-                f'🔧 Agar siz bu shikoyatni o\'zgartirmoqchi bo\'lsangiz, pastdagi tugmani bosing.'
+                f'{"❓ Hali belgilanmagan" if all_complain.level == "Not chosen" else "📊 O`rtacha" if all_complain.level == "normal" else "🔥 Jiddiy"}\n\n'
+                f'🔧 Agar siz bu shikoyatni o`zgartirmoqchi bo`lsangiz, pastdagi tugmani bosing.'
             ),
             'ru': (
                 f'📄 ID: {all_complain.id}\n'
@@ -3411,7 +3411,7 @@ async def all_complains_(callback_query: CallbackQuery):
             ),
             'en': (
                 f'📄 ID: {all_complain.id}\n'
-                f'👤 Complainant\'s Telegram ID: {all_complain.complainer_tg_id}\n'
+                f'👤 Complainant`s Telegram ID: {all_complain.complainer_tg_id}\n'
                 f'🧑‍🏫 Accused: {all_complain.teacher_type} teacher {all_complain.to_whom}\n'
                 f'✍️ Complaint: "{all_complain.text.capitalize()}"\n'
                 f'⚖️ Complaint level set by admin: '
@@ -3488,7 +3488,7 @@ async def all_registration_(callback_query: CallbackQuery):
 async def send_message(message: Message, state: FSMContext):
     language = await get_user_language(message.from_user.id)
     text = {
-        'uz': '📸 Barcha foydalanuvchilarga yuboriladigan tayyor rasmni yo videoni tashlang. 📝 Suratning ostida matn bo\'lishi shart va uni oldindan tayyorlab oling.',
+        'uz': '📸 Barcha foydalanuvchilarga yuboriladigan tayyor rasmni yo videoni tashlang. 📝 Suratning ostida matn bo`lishi shart va uni oldindan tayyorlab oling.',
         'ru': '📸 Отправьте готовое изображение, которое будет отправлено всем пользователям. 📝 Под изображением должен быть текст, и его нужно подготовить заранее.',
         'en': '📸 Upload the prepared image or video to be sent to all users. 📝 The text should be below the image and should be prepared in advance.'}
 
@@ -3514,7 +3514,7 @@ async def send_all_user_message223232(message: Message, state: FSMContext):
             await delete_previous_messages(message.message_id + 1, message.from_user.id)
             return
         else:
-            text = {'uz': '📸 Iltimos, surat/video ostida 📝 matn bo\'lishi shart.',
+            text = {'uz': '📸 Iltimos, surat/video ostida 📝 matn bo`lishi shart.',
                     'ru': '📸 Пожалуйста, под изображением/видео должен быть 📝 текст.',
                     'en': '📸 Please make sure there is 📝 text below the image/video.'}
             await message.answer(text=text.get(language), reply_markup=await back_home(language))
@@ -3522,7 +3522,7 @@ async def send_all_user_message223232(message: Message, state: FSMContext):
             await delete_previous_messages(message.message_id, message.from_user.id)
             return
     if not message.caption:
-        text = {'uz': '📸 Iltimos, surat/video ostida 📝 matn bo\'lishi shart.',
+        text = {'uz': '📸 Iltimos, surat/video ostida 📝 matn bo`lishi shart.',
                 'ru': '📸 Пожалуйста, под изображением/видео должен быть 📝 текст.',
                 'en': '📸 Please make sure there is 📝 text below the image/video.'}
         await message.answer(text=text.get(language), reply_markup=await back_home(language))
