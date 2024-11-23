@@ -2292,7 +2292,7 @@ async def confirm(callback_query: CallbackQuery, state: FSMContext):
                                          f'Jinsi: {gender}\n'
                                          f'Tug\'ilgan yili: {year} yil\n'
                                          f'Tug\'ilgan oyi: {month} oy\n'
-                                         f'Kurs darajasi: {level if level else 'Kurs mavjud emas'}\n'
+                                         f'Kurs darajasi: {level if level else "Kurs mavjud emas"}\n'
                                          f'Tug\'ilgan kuni: {day} kun\n'
                                          f'Kurs nomi: {course}\n'
                                          f'Kurs vaqti: {time}'),
