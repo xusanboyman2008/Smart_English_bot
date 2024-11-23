@@ -2692,7 +2692,7 @@ async def image(message: Message, state: FSMContext):
     speaking = data.get('speaking')
     listening = data.get('listening')
     file_id = message.photo[-1].file_id
-    await state.update_data(image=f'Certificate/{name.replace(' ', '_')}.jpg')
+    await state.update_data(image=f'Certificate/{name.replace("", "_")}.jpg')
     band = (float(reading[:1]) + float(writing[:1]) + float(speaking[:1]) + float(listening[:1])) / 4
     decimal_part = str(band).split('.')[1]  # Extract the decimal part
     if int(decimal_part) >= 75:
