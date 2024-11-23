@@ -2,7 +2,7 @@ import asyncio
 import os
 import traceback
 from datetime import datetime
-from time import localtime, sleep
+from time import localtime
 from typing import Callable, Dict, Any, Awaitable
 
 from aiogram import Bot, Dispatcher, F, BaseMiddleware
@@ -130,7 +130,7 @@ async def back_home(language):
     row = []
     for i in text.get(language):
         row.append(KeyboardButton(text=i))
-    keyboard_button = ReplyKeyboardMarkup(keyboard=[row],resize_keyboard=True)
+    keyboard_button = ReplyKeyboardMarkup(keyboard=[row], resize_keyboard=True)
     return keyboard_button
 
 
@@ -287,7 +287,7 @@ async def delete_call(tg_id):
     async with async_session() as session:
         stmt = select(Registering).where(Registering.tg_id == tg_id)
         result = await session.execute(stmt)
-        records = result.scalars().all() # Fetch the single record
+        records = result.scalars().all()  # Fetch the single record
 
         if records:  # Check if record exists
             for record in records:
@@ -992,16 +992,14 @@ async def level_more(language, day, month_name):
     return inline_keyboard
 
 
-async def call(number, tg_id,langugae):
+async def call(number, tg_id, langugae):
     inline_button = []
     inline_button.append([InlineKeyboardButton(text='🤙 Telefon raqamni olib qoyish ⚠️⚠️⚠️ maslahat beriladi',
                                                switch_inline_query=number)])
     row = []
-    text = {
-        'uz': [f'☎️ Telefon qildim. called_{tg_id}', f'🗑️ Bu telefon raqamni ochirish. broken_{tg_id}'],
-        'ru': [f'☎️ Я позвонил. called_{tg_id}', f'🗑️ Удалить этот номер телефона. broken_{tg_id}'],
-        'en': [f'☎️ I made a call. called_{tg_id}', f'🗑️ Delete this phone number. broken_{tg_id}']
-    }
+    text = {'uz': [f'☎️ Telefon qildim. called_{tg_id}', f'🗑️ Bu telefon raqamni ochirish. broken_{tg_id}'],
+            'ru': [f'☎️ Я позвонил. called_{tg_id}', f'🗑️ Удалить этот номер телефона. broken_{tg_id}'],
+            'en': [f'☎️ I made a call. called_{tg_id}', f'🗑️ Delete this phone number. broken_{tg_id}']}
     for i in text.get(langugae):
         row.append(InlineKeyboardButton(text=f"{i.split('.')[0]}", callback_data=f"{i.split('.')[1]}"))
         inline_button.append(row)
@@ -1335,13 +1333,11 @@ async def change_user_role(language, current_role, user_id):
             row = []  # Reset the row
     if row:
         inline_button.append(row)
-    text2 = {
-        'uz': f'send_message_{user_id}.✉️ Xabar yuborish',
-        'ru': f'send_message_{user_id}.✉️ Отправить сообщение',
-        'en': f'send_message_{user_id}.✉️ Send a message'
-    }
+    text2 = {'uz': f'send_message_{user_id}.✉️ Xabar yuborish', 'ru': f'send_message_{user_id}.✉️ Отправить сообщение',
+             'en': f'send_message_{user_id}.✉️ Send a message'}
 
-    inline_button.append([InlineKeyboardButton(text = text2.get(language).split('.')[1], callback_data=text2.get(language).split(".")[0])])
+    inline_button.append(
+        [InlineKeyboardButton(text=text2.get(language).split('.')[1], callback_data=text2.get(language).split(".")[0])])
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
@@ -2281,7 +2277,7 @@ async def confirm(callback_query: CallbackQuery, state: FSMContext):
                                          f'Tug\'ilgan kuni: {day} kun\n'
                                          f'Kurs nomi: {course}\n'
                                          f'Kurs vaqti: {time}'),
-                                   reply_markup=await call(number, callback_query.from_user.id,language))
+                                   reply_markup=await call(number, callback_query.from_user.id, language))
     else:
         # Register the user with the correct data
         await register(tg_id=callback_query.from_user.username, name=fullname, phone_number=number, course=course,
@@ -2300,7 +2296,7 @@ async def confirm(callback_query: CallbackQuery, state: FSMContext):
                                          f'Tug\'ilgan kuni: {day} kun\n'
                                          f'Kurs nomi: {course}\n'
                                          f'Kurs vaqti: {time}'),
-                                   reply_markup=await call(number, callback_query.from_user.id,language))
+                                   reply_markup=await call(number, callback_query.from_user.id, language))
     match language:
         case 'uz':
             await bot.edit_message_text(message_id=callback_query.message.message_id,
@@ -2489,8 +2485,6 @@ async def broken2_(calllbac_Query: CallbackQuery):
     return
 
 
-
-
 @dp.callback_query(F.data.startswith('ywarned_'))
 async def ywarned3_(callback_query: CallbackQuery):
     global number
@@ -2508,20 +2502,20 @@ async def ywarned3_(callback_query: CallbackQuery):
             for i in await all_users_to_register(callback_query.from_user.id):
                 number = i.number
                 text = ("Siz bu studentga telefon qilishni unutgansiz yoki bu ishni atayin qilgansiz. "
-                    "Bu haqida javob berasiz.\n\n"
-                    "❗️❗️❗️❗️ Telefon qilish kerak - Smart English ❗️❗️❗️❗️❗️\n\n"
-                    f"To'liq ismi: {i.user_name}\n"
-                    f"Telegram foydalanuvchi nomi: @{i.telegram_information}\n"
-                    f"Telefon raqami: {i.number}\n"
-                    f"Jinsi: {i.gender}\n"
-                    f"Tug'ilgan yili: {i.born_year} yil\n"
-                    f"Kurs darajasi: {i.level}\n"
-                    f"Kurs nomi: {i.course}\n"
-                    f"Kurs vaqti: {i.time}")
+                        "Bu haqida javob berasiz.\n\n"
+                        "❗️❗️❗️❗️ Telefon qilish kerak - Smart English ❗️❗️❗️❗️❗️\n\n"
+                        f"To'liq ismi: {i.user_name}\n"
+                        f"Telegram foydalanuvchi nomi: @{i.telegram_information}\n"
+                        f"Telefon raqami: {i.number}\n"
+                        f"Jinsi: {i.gender}\n"
+                        f"Tug'ilgan yili: {i.born_year} yil\n"
+                        f"Kurs darajasi: {i.level}\n"
+                        f"Kurs nomi: {i.course}\n"
+                        f"Kurs vaqti: {i.time}")
 
             # Send the message to each call center
             await bot.send_message(chat_id=call_center_id, text=text,
-                                   reply_markup=await call(number, callback_query.from_user.id,language))
+                                   reply_markup=await call(number, callback_query.from_user.id, language))
 
 
 # --------------------------------  Add Information's ------------------------------------------------------------------#
@@ -3382,15 +3376,11 @@ async def changer_role(callback_query: CallbackQuery):
 
 
 @dp.callback_query(F.data.startswith('send_message_'))
-async def send_message2_(callback_query:CallbackQuery,state:FSMContext):
+async def send_message2_(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(callback_query.from_user.id)
-    text = {
-        'uz': '💬 Xabaringizni yozing',
-        'ru': '💬 Напишите ваше сообщение',
-        'en': '💬 Write your message'
-    }
-    await callback_query.message.answer(text=text.get(language),reply_markup= await back_home(language))
-    await state.update_data(tg_id = callback_query.data.split("_")[2])
+    text = {'uz': '💬 Xabaringizni yozing', 'ru': '💬 Напишите ваше сообщение', 'en': '💬 Write your message'}
+    await callback_query.message.answer(text=text.get(language), reply_markup=await back_home(language))
+    await state.update_data(tg_id=callback_query.data.split("_")[2])
     await state.set_state(send_message_to_user.message)
 
 
@@ -3400,41 +3390,36 @@ async def all_complains_(callback_query: CallbackQuery):
     language = await get_user_language(callback_query.from_user.id)
     all1_complain = await all_complains()
     for all_complain in all1_complain:
-        text = {'uz': f'ID: {all_complain.id}'
-                      f'Shikoyatchi telegram ID si {all_complain.complainer_tg_id}\n'
-                      f'Aybalnuvchi {all_complain.teacher_type} teacher {all_complain.to_whom}ga \n'
-                      f'{all_complain.text.capitalize()} \n deb shikotat qilindi'
-                      f' va Admin unga {"'hali belgilanmgan'" if all_complain.level == "Not chosen" else "O'rtacha" if all_complain.level == "normal" else "Jiddiy"} deb belgiladi\n\n '
-                      f'Agar siz bu shikoyatni ozgartirmoqchi bolsangiz pasdagi tugmani bosing''uz'
-                      f'Shikoyatchi telegram ID si{all_complain.complainer_tg_id}\n'
-                      f'Aybalnuvchi {all_complain.teacher_type} teacher {all_complain.to_whom}ga \n'
-                      f'{all_complain.text.capitalize()} \n deb shikotat qilindi'
-                      f' va Admin unga {"'hali belgilanmgan'" if all_complain.level == "Not chosen" else "O'rtacha" if all_complain.level == "normal" else "Jiddiy"} deb belgiladi\n\n '
-                      f'Agar siz bu shikoyatni ozgartirmoqchi bolsangiz pasdagi tugmani bosing',
-                'ru': f'ID: {all_complain.id}'
-                      f'Shikoyatchi telegram ID si {all_complain.complainer_tg_id}\n'
-                      f'Aybalnuvchi {all_complain.teacher_type} teacher {all_complain.to_whom}ga \n'
-                      f'{all_complain.text.capitalize()} \n deb shikotat qilindi'
-                      f' va Admin unga {"'hali belgilanmgan'" if all_complain.level == "Not chosen" else "O'rtacha" if all_complain.level == "normal" else "Jiddiy"} deb belgiladi\n\n '
-                      f'Agar siz bu shikoyatni ozgartirmoqchi bolsangiz pasdagi tugmani bosing''uz'
-                      f'Shikoyatchi telegram ID si{all_complain.complainer_tg_id}\n'
-                      f'Aybalnuvchi {all_complain.teacher_type} teacher {all_complain.to_whom}ga \n'
-                      f'{all_complain.text.capitalize()} \n deb shikotat qilindi'
-                      f' va Admin unga {"'hali belgilanmgan'" if all_complain.level == "Not chosen" else "O'rtacha" if all_complain.level == "normal" else "Jiddiy"} deb belgiladi\n\n '
-                      f'Agar siz bu shikoyatni ozgartirmoqchi bolsangiz pasdagi tugmani bosing',
-                'en': f'ID: {all_complain.id}'
-                      f'Shikoyatchi telegram ID si {all_complain.complainer_tg_id}\n'
-                      f'Aybalnuvchi {all_complain.teacher_type} teacher {all_complain.to_whom}ga \n'
-                      f'{all_complain.text.capitalize()} \n deb shikotat qilindi'
-                      f' va Admin unga {"'hali belgilanmgan'" if all_complain.level == "Not chosen" else "O'rtacha" if all_complain.level == "normal" else "Jiddiy"} deb belgiladi\n\n '
-                      f'Agar siz bu shikoyatni ozgartirmoqchi bolsangiz pasdagi tugmani bosing''uz'
-                      f'Shikoyatchi telegram ID si{all_complain.complainer_tg_id}\n'
-                      f'Aybalnuvchi {all_complain.teacher_type} teacher {all_complain.to_whom}ga \n'
-                      f'{all_complain.text.capitalize()} \n deb shikotat qilindi'
-                      f' va Admin unga {"'hali belgilanmgan'" if all_complain.level == "Not chosen" else "O'rtacha" if all_complain.level == "normal" else "Jiddiy"} deb belgiladi\n\n '
-                      f'Agar siz bu shikoyatni ozgartirmoqchi bolsangiz pasdagi tugmani bosing',
+        text = {
+            'uz': (
+                f'📄 ID: {all_complain.id}\n'
+                f'👤 Shikoyatchi Telegram ID: {all_complain.complainer_tg_id}\n'
+                f'🧑‍🏫 Ayblanuvchi: {all_complain.teacher_type} o\'qituvchi {all_complain.to_whom}ga\n'
+                f'✍️ Shikoyat: "{all_complain.text.capitalize()}"\n'
+                f'⚖️ Admin tomonidan shikoyat darajasi: '
+                f'{"❓ Hali belgilanmagan" if all_complain.level == "Not chosen" else "📊 O\'rtacha" if all_complain.level == "normal" else "🔥 Jiddiy"}\n\n'
+                f'🔧 Agar siz bu shikoyatni o\'zgartirmoqchi bo\'lsangiz, pastdagi tugmani bosing.'
+            ),
+            'ru': (
+                f'📄 ID: {all_complain.id}\n'
+                f'👤 ID Телеграмм жалобщика: {all_complain.complainer_tg_id}\n'
+                f'🧑‍🏫 Обвиняемый: учитель {all_complain.teacher_type} {all_complain.to_whom}\n'
+                f'✍️ Жалоба: "{all_complain.text.capitalize()}"\n'
+                f'⚖️ Уровень жалобы, установленный администратором: '
+                f'{"❓ Ещё не выбран" if all_complain.level == "Not chosen" else "📊 Средний" if all_complain.level == "normal" else "🔥 Серьёзный"}\n\n'
+                f'🔧 Если вы хотите изменить эту жалобу, нажмите кнопку ниже.'
+            ),
+            'en': (
+                f'📄 ID: {all_complain.id}\n'
+                f'👤 Complainant\'s Telegram ID: {all_complain.complainer_tg_id}\n'
+                f'🧑‍🏫 Accused: {all_complain.teacher_type} teacher {all_complain.to_whom}\n'
+                f'✍️ Complaint: "{all_complain.text.capitalize()}"\n'
+                f'⚖️ Complaint level set by admin: '
+                f'{"❓ Not chosen yet" if all_complain.level == "Not chosen" else "📊 Average" if all_complain.level == "normal" else "🔥 Serious"}\n\n'
+                f'🔧 If you want to edit this complaint, please click the button below.'
+            )
+        }
 
-                }
         await bot.send_message(text=text.get(language), chat_id=callback_query.message.chat_id,
                                reply_markup=await complain_level_manager(language, all_complain.complainer_tg_id))
         text2 = {'ru': "Главное меню",  # Text in Russian
@@ -3500,25 +3485,25 @@ async def all_registration_(callback_query: CallbackQuery):
 
 # ------------------------------------ Send message to all users--------------------------------------------------------#
 @dp.message(Command('send_message'))
-async def send_message(message: Message,state:FSMContext):
-        language = await get_user_language(message.from_user.id)
-        text = {
-            'uz': '📸 Barcha foydalanuvchilarga yuboriladigan tayyor rasmni yo videoni tashlang. 📝 Suratning ostida matn bo\'lishi shart va uni oldindan tayyorlab oling.',
-            'ru': '📸 Отправьте готовое изображение, которое будет отправлено всем пользователям. 📝 Под изображением должен быть текст, и его нужно подготовить заранее.',
-            'en': '📸 Upload the prepared image or video to be sent to all users. 📝 The text should be below the image and should be prepared in advance.'
-         }
+async def send_message(message: Message, state: FSMContext):
+    language = await get_user_language(message.from_user.id)
+    text = {
+        'uz': '📸 Barcha foydalanuvchilarga yuboriladigan tayyor rasmni yo videoni tashlang. 📝 Suratning ostida matn bo\'lishi shart va uni oldindan tayyorlab oling.',
+        'ru': '📸 Отправьте готовое изображение, которое будет отправлено всем пользователям. 📝 Под изображением должен быть текст, и его нужно подготовить заранее.',
+        'en': '📸 Upload the prepared image or video to be sent to all users. 📝 The text should be below the image and should be prepared in advance.'}
 
-        await bot.send_message(text=text.get(language), chat_id=message.from_user.id,
-                                    reply_markup=await back_home(language))
-        await message.delete()
-        await state.set_state(send_message_to_user.message)
-        await delete_previous_messages(message.message_id,message.from_user.id)
+    await bot.send_message(text=text.get(language), chat_id=message.from_user.id,
+                           reply_markup=await back_home(language))
+    await message.delete()
+    await state.set_state(send_message_to_user.message)
+    await delete_previous_messages(message.message_id, message.from_user.id)
+
 
 @dp.message(send_message_to_user.message)
-async def send_all_user_message223232(message:Message,state:FSMContext):
+async def send_all_user_message223232(message: Message, state: FSMContext):
     language = await get_user_language(message.from_user.id)
     if message.text:
-        if message.text[0]=='🏠' or message.text[0]=='🔙':
+        if message.text[0] == '🏠' or message.text[0] == '🔙':
             text4 = {'ru': "Главное меню",  # Text in Russian
                      'en': "Main Menu",  # Text in English
                      'uz': "Bosh menu"  # Text in Uzbek
@@ -3526,27 +3511,23 @@ async def send_all_user_message223232(message:Message,state:FSMContext):
             await bot.send_message(chat_id=message.from_user.id, text=text4.get(language),
                                    reply_markup=await home(language, message.from_user.id))
             await state.clear()
-            await delete_previous_messages(message.message_id+1, message.from_user.id)
+            await delete_previous_messages(message.message_id + 1, message.from_user.id)
             return
         else:
-            text = {
-                'uz': '📸 Iltimos, surat/video ostida 📝 matn bo\'lishi shart.',
-                'ru': '📸 Пожалуйста, под изображением/видео должен быть 📝 текст.',
-                'en': '📸 Please make sure there is 📝 text below the image/video.'
-            }
-            await message.answer(text=text.get(language),reply_markup=await back_home(language))
+            text = {'uz': '📸 Iltimos, surat/video ostida 📝 matn bo\'lishi shart.',
+                    'ru': '📸 Пожалуйста, под изображением/видео должен быть 📝 текст.',
+                    'en': '📸 Please make sure there is 📝 text below the image/video.'}
+            await message.answer(text=text.get(language), reply_markup=await back_home(language))
             await state.set_state(send_message_to_user.message)
             await delete_previous_messages(message.message_id, message.from_user.id)
             return
     if not message.caption:
-        text = {
-            'uz': '📸 Iltimos, surat/video ostida 📝 matn bo\'lishi shart.',
-            'ru': '📸 Пожалуйста, под изображением/видео должен быть 📝 текст.',
-            'en': '📸 Please make sure there is 📝 text below the image/video.'
-        }
+        text = {'uz': '📸 Iltimos, surat/video ostida 📝 matn bo\'lishi shart.',
+                'ru': '📸 Пожалуйста, под изображением/видео должен быть 📝 текст.',
+                'en': '📸 Please make sure there is 📝 text below the image/video.'}
         await message.answer(text=text.get(language), reply_markup=await back_home(language))
         await state.set_state(send_message_to_user.message)
-        await delete_previous_messages(message.message_id,message.from_user.id)
+        await delete_previous_messages(message.message_id, message.from_user.id)
         return
     if message.photo or message.video:
         for user in await all_users(message.from_user.id):
@@ -3564,6 +3545,8 @@ async def send_all_user_message223232(message:Message,state:FSMContext):
                  }
         await bot.send_message(chat_id=message.from_user.id, text=text4.get(language),
                                reply_markup=await home(language, message.from_user.id))
+
+
 # ------------------------------------ Settings ------------------------------------------------------------------------#
 @dp.callback_query(F.data.startswith('settings'))
 async def settings(callback_query: CallbackQuery):
