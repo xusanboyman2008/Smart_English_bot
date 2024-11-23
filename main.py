@@ -3445,12 +3445,12 @@ async def all_registration_(callback_query: CallbackQuery):
                       f'📚 Tanlagan kurs nomi: {list.course}\n'
                       f'📈 {list.course.capitalize()}ga tanlangan bosqichi: {list.level}\n'
                       f'⏰ {list.course.capitalize()}ga tanlangan vaqti: {list.time}\n'
-                      f'📞 Studentga aloqga chiqishdimi: {"✅ Ha" if list.is_connected != "no" else "❌ Yo\'q"}\n'
+                      f'📞 Studentga aloqga chiqishdimi: {"✅ Ha" if list.is_connected != "no" else "❌ Yo`q"}\n'
                       f'📅 Registratsiyadan o‘tgan vaqti: {list.registered_time}',
 
                 'ru': f'🆔 ID: {list.id}\n\n'
                       f'👤 Имя студента: {list.user_name}\n'
-                      f'📱 Telegram имя пользователя: {"Отсутствует" if list.telegram_information == "None" else "@" + str(list.telegram_information)}\n'
+                      f'📱 Telegram имя пользователя: {"Отсутствует" if list.telegram_information != "no" else "@" + str(list.telegram_information)}\n'
                       f'🎂 Возраст: {list.born_year}\n'
                       f'📞 Номер телефона: {list.number}\n'
                       f'⚥ Пол: {list.gender}\n'
