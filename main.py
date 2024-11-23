@@ -1641,7 +1641,7 @@ async def complain_level_manager(language, id):
         'en': [f'mlevel_serious_{id}.😠 Serious', f'mlevel_normal_{id}.🙂 Normal',
                f'mlevel_delete_{id}.❌ Not a complaint'], }
     for i in text.get(language):
-        row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f'{i.split('.')[0]}'))
+        row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f"{i.split('.')[0]}"))
         if len(row) == 3:
             inline_button.append(row)
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
