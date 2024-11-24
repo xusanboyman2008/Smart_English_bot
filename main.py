@@ -3936,7 +3936,7 @@ async def deleter(message: Message):
 
 # --------------------------------- Polling the bot --------------------------------------------------------------------#
 async def main():
-    # keep_alive()
+    keep_alive()
     await init()
     print(f'Bot stareted at {formatted_time}')
     await dp.start_polling(bot, skip_updates=True)
