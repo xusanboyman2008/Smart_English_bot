@@ -17,7 +17,7 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase
 
-token = '7874928619:AAG4cBEskKnmlES2Rp52DANqoogp3qT1O04'
+token = '7874928619:AAF3ESF1FJvBUIWN561yW9mYH9eAcBmKy50'
 bot = Bot(token=token)
 dp = Dispatcher()
 
@@ -1048,7 +1048,7 @@ async def call(number, tg_id, langugae):
             'en': [f'☎️ I made a call. called_{tg_id}', f'🗑️ Delete this phone number. broken_{tg_id}']}
     for i in text.get(langugae):
         row.append(InlineKeyboardButton(text=f"{i.split('.')[0]}", callback_data=f"{i.split('.')[1]}"))
-        inline_button.append(row)
+    inline_button.append(row)
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
@@ -2459,7 +2459,7 @@ async def number2(message: Message, state: FSMContext):
     await delete_previous_messages(message.message_id, id=message.from_user.id)
 
 
-@dp.callback_query(F.data.startswith('clled_'))
+@dp.callback_query(F.data.startswith('called_'))
 async def call_(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(callback_query.from_user.id)
     text = {'uz': '📞 Siz telefon qilganingiz uchun rahmat\n📝 Qoʻngʻiroq uchun izoh qoldiring',
