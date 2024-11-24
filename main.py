@@ -433,6 +433,7 @@ class Suggestions(StatesGroup):
 class send_message_to_user(StatesGroup):
     tg_id = State()
     message = State()
+    delete = State()
 
 
 class Register_full(StatesGroup):
@@ -645,17 +646,42 @@ async def home(language, tg_id):
     inline_button = []
     row = []
     if await take_admin(tg_id):
-        text = {'uz': ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'audio_.🔊 Audio materiallar',
-                       'complain_.📌 Shikoyat qilish', 'hire_.👨‍💼 Xodimlar', 'admin_.🤴🏻 Admin kasbga qoyish',
-                       'all_complains_.🎯 Barcha shikoyatlar', 'all_registration_.📜 Barcha registratsiyalar',
-                       'settings.⚙️ Sozlamalar'],
-                'ru': ['courses_.✍️ Записаться на курс', 'results.🏆 Результаты', 'audio_.🔊 Аудио материалы',
-                       'complain_.📌 Подать жалобу', 'hire_.👨‍💼 Сотрудники', 'admin_.🤴🏻 Назначить на должность админа',
-                       'all_complains_.🎯 Все жалобы', 'all_registration_.📜 Все регистрации', 'settings.⚙️ Настройки'],
-                'en': ['courses_.✍️ Enroll in a course', 'results.🏆 Results', 'audio_.🔊 Audio materials',
-                       'complain_.📌 File a complaint', 'hire_.👨‍💼 Employees', 'admin_.🤴🏻 Assign admin role',
-                       'all_complains_.🎯 All complaints', 'all_registration_.📜 All registrations',
-                       'settings.⚙️ Settings'], }
+        text = {
+            'uz': [
+                'courses_.✍️ Kursga yozilish',
+                'results.🏆 Natijalar',
+                'audio_.🔊 Audio materiallar',
+                'complain_.📌 Shikoyat qilish',
+                'hire_.👨‍💼 Smartda ishlash',
+                'admin_.🤴🏻 Admin ',
+                'all_complains_.🎯 Barcha shikoyatlar',
+                'all_registration_.📜 Barcha registratsiyalar',
+                'settings.⚙️ Sozlamalar'
+            ],
+            'ru': [
+                'courses_.✍️ Запись на курс',
+                'results.🏆 Результаты',
+                'audio_.🔊 Аудиоматериалы',
+                'complain_.📌 Подать жалобу',
+                'hire_.👨‍💼 Работа в Smart',
+                'admin_.🤴🏻администратор',
+                'all_complains_.🎯 Все жалобы',
+                'all_registration_.📜 Все регистрации',
+                'settings.⚙️ Настройки'
+            ],
+            'en': [
+                'courses_.✍️ Enroll in a course',
+                'results.🏆 Results',
+                'audio_.🔊 Audio materials',
+                'complain_.📌 File a complaint',
+                'hire_.👨‍💼 Work at Smart',
+                'admin_.🤴🏻 Admin',
+                'all_complains_.🎯 All complaints',
+                'all_registration_.📜 All registrations',
+                'settings.⚙️ Settings'
+            ]
+        }
+
         for i in text.get(language):
             row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f"{i.split('.')[0]}"))
             if len(row) == 3:
@@ -664,12 +690,33 @@ async def home(language, tg_id):
         if row:
             inline_button.append(row)
     if not await take_admin(tg_id):
-        text2 = {'uz': ['courses_.✍️ Kursga yozilish', 'results.🏆 Natijalar', 'audio_.🔊 Audio materiallar',
-                        'complain_.📌 Shikoyat qilish', 'hire_.👨‍💼 Xodimlar', 'settings.⚙️ Sozlamalar'],
-                 'ru': ['courses_.✍️ Записаться на курс', 'results.🏆 Результаты', 'audio_.🔊 Аудио материалы',
-                        'complain_.📌 Подать жалобу', 'hire_.👨‍💼 Сотрудники', 'settings.⚙️ Настройки'],
-                 'en': ['courses_.✍️ Enroll in a course', 'results.🏆 Results', 'audio_.🔊 Audio materials',
-                        'complain_.📌 File a complaint', 'hire_.👨‍💼 Employees', 'settings.⚙️ Settings'], }
+        text2 = {
+            'uz': [
+                'courses_.✍️ Kursga yozilish',
+                'results.🏆 Natijalar',
+                'audio_.🔊 Audio materiallar',
+                'complain_.📌 Shikoyat qilish',
+                'hire_.👨‍💼 Smartda ishlash',
+                'settings.⚙️ Sozlamalar'
+            ],
+            'ru': [
+                'courses_.✍️ Запись на курс',
+                'results.🏆 Результаты',
+                'audio_.🔊 Аудиоматериалы',
+                'complain_.📌 Подать жалобу',
+                'hire_.👨‍💼 Работа в Smart',
+                'settings.⚙️ Настройки'
+            ],
+            'en': [
+                'courses_.✍️ Enroll in a course',
+                'results.🏆 Results',
+                'audio_.🔊 Audio materials',
+                'complain_.📌 File a complaint',
+                'hire_.👨‍💼 Work at Smart',
+                'settings.⚙️ Settings'
+            ]
+        }
+
         for i in text2.get(language):
             row.append(InlineKeyboardButton(text=f'{i.split(".")[1]}', callback_data=f"{i.split('.')[0]}"))
             if len(row) == 3:
@@ -677,7 +724,6 @@ async def home(language, tg_id):
                 row = []
         if row:
             inline_button.append(row)
-
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=inline_button)
     return inline_keyboard
 
@@ -3381,9 +3427,47 @@ async def send_message2_(callback_query: CallbackQuery, state: FSMContext):
     text = {'uz': '💬 Xabaringizni yozing', 'ru': '💬 Напишите ваше сообщение', 'en': '💬 Write your message'}
     await callback_query.message.answer(text=text.get(language), reply_markup=await back_home(language))
     await state.update_data(tg_id=callback_query.data.split("_")[2])
-    await state.set_state(send_message_to_user.message)
+    await state.set_state(send_message_to_user.tg_id)
 
 
+
+@dp.message(send_message_to_user.tg_id)
+async def send_all_user_message223232(message: Message, state: FSMContext):
+    language = await get_user_language(message.from_user.id)
+    caption = {
+        'uz': f"📩 Sizga {'@' + message.from_user.username if message.from_user.username else '(mavjud emas/manager)'} xabar yubordi",
+        'ru': f"📩 Вам отправил сообщение {'@' + message.from_user.username if message.from_user.username else '(не существует/менеджер)'}",
+        'en': f"📩 You received a message from {'@' + message.from_user.username if message.from_user.username else '(not available/manager)'}"
+    }
+    data = await state.get_data()
+    tg_id = data.get('tg_id')
+    lan2 = await get_user_language(tg_id)
+    if message.text:
+        if message.text[0] == '🏠' or message.text[0] == '🔙':
+            text4 = {'ru': "Главное меню",  # Text in Russian
+                     'en': "Main Menu",  # Text in English
+                     'uz': "Bosh menu"  # Text in Uzbek
+                     }
+            await bot.send_message(chat_id=message.from_user.id, text=text4.get(language),
+                                   reply_markup=await home(language, message.from_user.id))
+            await state.clear()
+            await delete_previous_messages(message.message_id + 1, message.from_user.id)
+            return
+        await bot.send_message(chat_id=tg_id, text=f"{caption.get(lan2)}\n\n{message.text}")
+    if message.photo:
+        await bot.send_photo(chat_id=tg_id,photo=message.photo[-1].file_id,caption=caption.get(lan2),show_caption_above_media=caption.get(lan2))
+    if message.audio:
+        await bot.send_audio(chat_id=tg_id,audio=message.audio.file_id,caption=caption.get(lan2))
+    if message.video:
+        await bot.send_video(chat_id=tg_id, video=message.video.file_id,show_caption_above_media=caption.get(lan2))
+    if message.sticker:
+        await bot.send_sticker(chat_id=tg_id,sticker=message.sticker.file_id)
+    text = {
+        'uz': '✅ Siz xabarni muvaffaqiyatli yubordingiz /start ',
+        'ru': '✅ Вы успешно отправили сообщение /start',
+        'en': '✅ You have successfully sent the message /start'
+    }
+    await message.answer(text=text.get(language))
 # ------------------------------------ All Complains -------------------------------------------------------------------#
 @dp.callback_query(F.data.startswith('all_complains_'))
 async def all_complains_(callback_query: CallbackQuery):
@@ -3396,31 +3480,30 @@ async def all_complains_(callback_query: CallbackQuery):
                 f'👤 Shikoyatchi Telegram ID: {all_complain.complainer_tg_id}\n'
                 f'🧑‍🏫 Ayblanuvchi: {all_complain.teacher_type} o`qituvchi {all_complain.to_whom}ga\n'
                 f'✍️ Shikoyat: "{all_complain.text.capitalize()}"\n'
-                f'⚖️ Admin tomonidan shikoyat darajasi: '
-                f'{"❓ Hali belgilanmagan" if all_complain.level == "Not chosen" else "📊 O`rtacha" if all_complain.level == "normal" else "🔥 Jiddiy"}\n\n'
+                f'⚖️ Admin tomonidan belgilangan shikoyat darajasi: '
+                f'{"❓ Hali belgilanmagan" if all_complain.level == "Not chosen" else "📊 O`rtacha" if all_complain.level == "normal" else "🚫 Shikoyat emas" if all_complain.level == "delete" else "🔥 Jiddiy"}\n\n'
                 f'🔧 Agar siz bu shikoyatni o`zgartirmoqchi bo`lsangiz, pastdagi tugmani bosing.'
             ),
             'ru': (
                 f'📄 ID: {all_complain.id}\n'
-                f'👤 ID Телеграмм жалобщика: {all_complain.complainer_tg_id}\n'
+                f'👤 ID жалобщика в Telegram: {all_complain.complainer_tg_id}\n'
                 f'🧑‍🏫 Обвиняемый: учитель {all_complain.teacher_type} {all_complain.to_whom}\n'
                 f'✍️ Жалоба: "{all_complain.text.capitalize()}"\n'
                 f'⚖️ Уровень жалобы, установленный администратором: '
-                f'{"❓ Ещё не выбран" if all_complain.level == "Not chosen" else "📊 Средний" if all_complain.level == "normal" else "🔥 Серьёзный"}\n\n'
-                f'🔧 Если вы хотите изменить эту жалобу, нажмите кнопку ниже.'
+                f'{"❓ Ещё не установлен" if all_complain.level == "Not chosen" else "📊 Средний" if all_complain.level == "normal" else "🚫 Это не жалоба" if all_complain.level == "delete" else "🔥 Серьёзный"}\n\n'
+                f'🔧 Если вы хотите изменить эту жалобу, нажмите на кнопку ниже.'
             ),
             'en': (
                 f'📄 ID: {all_complain.id}\n'
-                f'👤 Complainant`s Telegram ID: {all_complain.complainer_tg_id}\n'
+                f'👤 Complainant\'s Telegram ID: {all_complain.complainer_tg_id}\n'
                 f'🧑‍🏫 Accused: {all_complain.teacher_type} teacher {all_complain.to_whom}\n'
                 f'✍️ Complaint: "{all_complain.text.capitalize()}"\n'
-                f'⚖️ Complaint level set by admin: '
-                f'{"❓ Not chosen yet" if all_complain.level == "Not chosen" else "📊 Average" if all_complain.level == "normal" else "🔥 Serious"}\n\n'
-                f'🔧 If you want to edit this complaint, please click the button below.'
+                f'⚖️ Complaint level set by the admin: '
+                f'{"❓ Not yet set" if all_complain.level == "Not chosen" else "📊 Moderate" if all_complain.level == "normal" else "🚫 Not a complaint" if all_complain.level == "delete" else "🔥 Serious"}\n\n'
+                f'🔧 If you want to edit this complaint, press the button below.'
             )
         }
-
-        await bot.send_message(text=text.get(language), chat_id=callback_query.message.chat_id,
+        await bot.send_message(text=text.get(language), chat_id=callback_query.from_user.id,
                                reply_markup=await complain_level_manager(language, all_complain.complainer_tg_id))
         text2 = {'ru': "Главное меню",  # Text in Russian
                  'en': "Main Menu",  # Text in English
@@ -3428,7 +3511,7 @@ async def all_complains_(callback_query: CallbackQuery):
                  }
         await bot.send_message(chat_id=callback_query.from_user.id, text=text2.get(language),
                                reply_markup=await home(language, callback_query.from_user.id))
-        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
+        await delete_previous_messages(callback_query.message.message_id+1, callback_query.from_user.id)
 
 
 @dp.callback_query(F.data.startswith('all_registration_'))
