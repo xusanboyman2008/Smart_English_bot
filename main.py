@@ -17,6 +17,8 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase
 
+from keep_alive import keep_alive
+
 token = '7874928619:AAF3ESF1FJvBUIWN561yW9mYH9eAcBmKy50'
 bot = Bot(token=token)
 dp = Dispatcher()
@@ -3933,6 +3935,7 @@ async def deleter(message: Message):
 
 # --------------------------------- Polling the bot --------------------------------------------------------------------#
 async def main():
+    keep_alive()
     await init()
     print(f'Bot stareted at {formatted_time}')
     await dp.start_polling(bot, skip_updates=True)
