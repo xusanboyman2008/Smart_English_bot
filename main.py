@@ -17,7 +17,7 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase
 
-token = '7874928619:AAGq2IJMNjvUjpJ2vU3N9L85frcGhhykDKU'
+token = '7874928619:AAG4cBEskKnmlES2Rp52DANqoogp3qT1O04'
 bot = Bot(token=token)
 dp = Dispatcher()
 
@@ -225,10 +225,10 @@ async def set_register_state_yes(tg_id, is_connected, comment):
 
 async def changer_user_role(user_id, new_role):
     async with async_session() as session:
-        stmt = select(User).where(User.id == user_id)
+        stmt = select(User).where(User.tg_id == user_id)
         result = await session.execute(stmt)
         user = result.scalar_one_or_none()
-        update_stmt = (update(User).where(User.id == user_id).values(role=new_role))
+        update_stmt = (update(User).where(User.tg_id == user_id).values(role=new_role))
         await session.execute(update_stmt)
         await session.commit()
         return True
@@ -322,9 +322,9 @@ async def all_users_to_register(tg_id):
 
 async def get_single_role(tg_id):
     async with async_session() as session:
-        stmt = select(User).where(User.id == tg_id)
+        stmt = select(User).where(User.tg_id == tg_id)
         result = await session.execute(stmt)  # Executes the query
-        user_ids = result.scalar()
+        user_ids = result.scalar_one_or_none()
         return user_ids
 
 
