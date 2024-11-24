@@ -3348,7 +3348,7 @@ async def changer_role(callback_query: CallbackQuery):
     await changer_user_role(user_id, role)
     user = await get_single_role(user_id)
     await callback_query.answer(
-        text=f"Siz {user.tg_name[:20]} ni darajasini {role} ga muaffaqiyat bilan o'zgartirdingiz ✅", show_alert=True)
+        text=f"Siz {user.tg_name} ni darajasini {role} ga muaffaqiyat bilan o'zgartirdingiz ✅", show_alert=True)
     text = {'uz': (f"Foydalanuvchining telegram ismi: {user.tg_name[:10]}\n"
                    f"Telegram usernamei: {'@' + user.tg_username if user.tg_username else 'mavjud emas'}\n"
                    f"FIO 📝: {user.FIO}\n"
