@@ -19,7 +19,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 from keep_alive import keep_alive
 
-token = '7874928619:AAF3ESF1FJvBUIWN561yW9mYH9eAcBmKy50'
+token = '7874928619:AAFp5mPukxWui2VRdeNrC6m2v_7Jp_Tim30'
 bot = Bot(token=token)
 dp = Dispatcher()
 
@@ -1060,7 +1060,7 @@ async def register_english(page):
     row = []
 
     if int(page) == 1:
-        for i in range(current_year - 11, current_year - 28, -1):
+        for i in range(current_year - 5, current_year - 28, -1):
             row.append(InlineKeyboardButton(text=f'{i}', callback_data=f'year_{i}_'))
             if len(row) == 4:
                 inline_keyboard.append(row)
@@ -1781,7 +1781,7 @@ async def send_certificate(bot: Bot, chat_id: int, callback_query, langauge):
                 await bot.send_message(chat_id, "No certificate found.")
                 return
             for certificate in certificates:
-                if certificate.is_deleted != '1':
+                if str(certificate.is_deleted) == 'False':
                     text = (f"📋 Certificate Information:\n\n"
                             f"👤 Full Name: {certificate.fullname}\n"
                             f"🏅 Band Score: {certificate.Overall_Band}\n\n"
@@ -1791,6 +1791,7 @@ async def send_certificate(bot: Bot, chat_id: int, callback_query, langauge):
                             f"📖 Reading: {certificate.reading}\n\n"
                             f"✨Smart English\n<a href='http://instagram.com/smart.english.official'>Instagram</a>|<a href='https://t.me/SMARTENGLISH2016'>Telegram</a>|<a href='https://www.youtube.com/channel/UCu8wC4sBtsVK6befrNuN7bw'>YouTube</a>|<a href='https://t.me/Smart_Food_official'>Smart Food</a>|<a href='https://t.me/xusanboyman200'>Programmer</a>")
                     image_path = certificate.image
+                    print(image_path)
 
                     if os.path.exists(image_path):
                         photo = FSInputFile(image_path)
@@ -2740,7 +2741,7 @@ async def image(message: Message, state: FSMContext):
     speaking = data.get('speaking')
     listening = data.get('listening')
     file_id = message.photo[-1].file_id
-    await state.update_data(image=f'Certificate/{name.replace("", "_")}.jpg')
+    await state.update_data(image=f'Certificate/{name.replace(" ", "_")}.jpg')
     band = (float(reading[:1]) + float(writing[:1]) + float(speaking[:1]) + float(listening[:1])) / 4
     decimal_part = str(band).split('.')[1]  # Extract the decimal part
     if int(decimal_part) >= 75:
@@ -3935,7 +3936,7 @@ async def deleter(message: Message):
 
 # --------------------------------- Polling the bot --------------------------------------------------------------------#
 async def main():
-    keep_alive()
+    # keep_alive()
     await init()
     print(f'Bot stareted at {formatted_time}')
     await dp.start_polling(bot, skip_updates=True)
