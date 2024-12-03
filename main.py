@@ -4,6 +4,7 @@ import traceback
 from datetime import datetime
 from time import localtime, sleep
 from typing import Callable, Dict, Any, Awaitable
+from urllib.parse import unquote
 
 import httpx
 import uvicorn
@@ -13,8 +14,9 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, TelegramObject, Update, \
-    ReplyKeyboardMarkup, KeyboardButton, FSInputFile, ReplyKeyboardRemove
+    ReplyKeyboardMarkup, KeyboardButton, FSInputFile
 from fastapi import Query, FastAPI
+from fastapi.responses import FileResponse
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, update, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
@@ -34,6 +36,7 @@ async_session = async_sessionmaker(engine)
 PHP_API_URL = "https://fairly-lasting-leech.ngrok-free.app"
 user = '/users'
 report = '/reports'
+hire23 = '/create'
 CSRF_TOKEN = "oWYKV5bgVfEHQ7avAFbK1IO9xcXqdAM6WUv75y7D"
 
 
@@ -76,34 +79,28 @@ async def fetch_and_send_registering_data():
 
             except Exception as e:
                 pass
-
         await asyncio.sleep(10)  # Wait 10 seconds before rechecking
 
 
-async def fetch_and_send_complain_data():
-    while True:  # Continuous loop
-        async with async_session() as session:
-            try:
-                # Fetch records with 'is_connected != "yes"'
-                query = select(Complain_db)
-                result = await session.execute(query)
-                records = result.scalars().all()
+async def fetch_and_send_complain_data(tg_id,level,text,to_whom,teacher_type):
+                data = {"user_id": int(tg_id), "rating": str(level),
+                            "message": text, 'created_at': str(time), 'title': str(to_whom),
+                            'type': str(teacher_type)}
 
-                for record in records:
-                    data = {'id': int(record.id), "user_id": int(record.complainer_tg_id), "rating": str(record.level),
-                            "message": record.text, 'created_at': str(record.time), 'title': str(record.to_whom),
-                            'type': str(record.teacher_type)}
+                await send_to_php_api(data, report)
 
-                if await send_to_php_api(data, report):
-                    record.is_connected = "yes"
-                # Commit changes
-                await session.commit()
-
-            except Exception as e:
-                pass
-        await asyncio.sleep(10)
-
-
+async def send_hired_to_php(tg_id,name,number,status,exp,img_path,year):
+    data = {
+        'tg_id':int(tg_id),
+        'name':name,
+        'number':number,
+        'status':status,
+        'experience':exp,
+        'year':year,
+        'created_at':formatted_time,
+        'img_path':img_path,
+    }
+    await send_to_php_api(data,'/create')
 # ------------------------------------database--------------------------------------------------------------------------#
 
 
@@ -149,7 +146,7 @@ class Registering(Base):
     telegram_information = Column(String, ForeignKey(User.tg_id, ondelete='CASCADE'))
     is_connected = Column(String, nullable=False, default='no')
     comment_for_call = Column(String, nullable=False, default='')
-    registered_time = Column(DateTime, default=current_time)
+    registered_time = Column(String, default=formatted_time)
 
 
 class Results_English(Base):
@@ -177,8 +174,8 @@ class Hire_employee(Base):
     year = Column(String, nullable=False)
     certificate = Column(String, nullable=False, default=False)
     experience = Column(String, nullable=False, default=False)
-    image = Column(String, nullable=False, default='./Hire/.💁‍♂️ Asistent ️/Abdulkhaev_Xusabvoy_Solijonivich.jpg')
-    register_time = Column(DateTime, nullable=True)
+    image = Column(String, nullable=False, default='no')
+    register_time = Column(String, nullable=True, default=formatted_time)
 
 
 class Complain_db(Base):
@@ -207,7 +204,11 @@ async def get_user_language(tg_id) -> str:
 
 
 async def back_home(language):
-    text = {'uz': ['🏠 Bosh menu', f'🔙 Orqaga']}
+    text = {
+        'uz': ['🏠 Bosh menu', '🔙 Orqaga'],
+        'ru': ['🏠 Главное меню', '🔙 Назад'],
+        'en': ['🏠 Main menu', '🔙 Back']
+    }
     row = []
     for i in text.get(language):
         row.append(KeyboardButton(text=i))
@@ -228,6 +229,14 @@ async def user_role(tg_id):
         stmt = select(User.role).where(User.tg_id == tg_id)
         result1 = await session.execute(stmt)
         user_language = result1.scalar_one_or_none()
+        return user_language
+
+
+async def take_complainer(tg_id):
+    async with async_session() as session:
+        stmt = select(Complain_db).where(Complain_db.id == tg_id)
+        result1 = await session.execute(stmt)
+        user_language = result1.scalars().all()
         return user_language
 
 
@@ -264,17 +273,22 @@ async def add_user_full(tg_id: int, username: str, name: str, number: str, fulln
 
 
 async def hire_employee(tg_id: str, username: str, name: str, year: str, certificate: str, experience: str, image: str,
-                        status:str,number:str) -> None:
+                        status: str, number: str) -> None:
     async with async_session() as session:
         stmt = select(Hire_employee).where(Hire_employee.tg_id == tg_id)
         result = await session.execute(stmt)
         user = result.scalar_one_or_none()
         if user:
-            update_stmt = (update(User).where(User.tg_id == tg_id).values(number=number,username=username, name=name,year=year,certificate=certificate,experience=experience,image=image,status=status))
+            update_stmt = (
+                update(Hire_employee).where(Hire_employee.tg_id == tg_id).values(number=number, tg_username=username,
+                                                                                 name=name, year=year,
+                                                                                 certificate=certificate,
+                                                                                 experience=experience, image=image,
+                                                                                 status=status))
             await session.execute(update_stmt)
         else:
-            new_user = Hire_employee(number=number,tg_id=tg_id, tg_username=username, name=name, year=year, certificate=certificate,
-                                     experience=experience, image=image, status=status, )
+            new_user = Hire_employee(number=number, tg_id=tg_id, tg_username=username, name=name, year=year,
+                                     certificate=certificate, experience=experience, image=image, status=status, )
             session.add(new_user)
         await session.commit()
 
@@ -327,7 +341,6 @@ async def complain_user_level(tg_id, level):
         update_stmt = update(Complain_db).where(Complain_db.id == tg_id).values(level=level)
         await session.execute(update_stmt)
         await session.commit()
-        return True
 
 
 async def register_result_en(fullname: str, writing: str, listening, reading: str, speaking: str, image: str,
@@ -1836,20 +1849,26 @@ async def download_image(bot: Bot, message: Message, name: str) -> str | None:
 
 async def download_image2(bot: Bot, message: Message, name: str, state: str) -> str | None:
     try:
-        # Ensure the save folder exists
-        save_folder = f"Hire/{state}"
+        save_folder = f"Hire/{state}/"
         os.makedirs(save_folder, exist_ok=True)
 
-        # Create a valid file name (replace spaces with underscores)
         file_name = f"{name.replace(' ', '_')}.jpg"
         save_path = os.path.join(save_folder, file_name)
 
-        # Get the file ID from the latest photo
-        file_id = message.photo[-1].file_id
+        # Check if the file already exists, and append (2), (3), etc., if it does
+        if os.path.exists(save_path):
+            base_name, ext = os.path.splitext(file_name)
+            counter = 2
+            while os.path.exists(save_path):
+                new_file_name = f"{base_name}({counter}){ext}"
+                save_path = os.path.join(save_folder, new_file_name)
+                counter += 1
 
-        # Download the file using file_id directly
+        # Get the file_id and download the file
+        file_id = message.photo[-1].file_id
         await bot.download(file_id, save_path)
         return save_path
+
     except Exception as e:
         print(f"Error downloading image: {e}")
         return None
@@ -2174,7 +2193,7 @@ async def sssss(callback_query: CallbackQuery, state: FSMContext):
         case 'en':
             await bot.send_message(text='Tugilgan oyingizni tanlang', chat_id=callback_query.from_user.id,
                                    reply_markup=await month(language, gender))
-    time.sleep(0.2)
+    sleep(0.2)
     await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
     await delete_previous_messages(id=callback_query.from_user.id, message=callback_query.message.message_id)
 
@@ -2431,7 +2450,7 @@ async def confirm(callback_query: CallbackQuery, state: FSMContext):
 
     # Send the message with translated buttons
     await bot.edit_message_text(message_id=callback_query.message.message_id,
-                                chat_id=callback_query.message.from_user.id, text=text,
+                                chat_id=callback_query.from_user.id, text=text,
                                 reply_markup=InlineKeyboardMarkup(
                                     inline_keyboard=[[InlineKeyboardButton(text=button_home, callback_data='menu_')], [
                                         InlineKeyboardButton(text=button_change_number,
@@ -3115,7 +3134,7 @@ async def hire_name(message: Message, state: FSMContext):
     language = await get_user_language(message.from_user.id)
     message_text = message.text.strip()
     name_parts = message_text.split()
-    if message.text[:1]=='🔙':
+    if message.text[:1] == '🔙':
         text = {'uz': '💼 Siz Smart English dagi qaysi soha bo‘yicha ishlashni xohlaysiz?',
                 'ru': '💼 В какой сфере в Smart English вы хотите работать?',
                 'en': '💼 In which field at Smart English would you like to work?'}
@@ -3123,14 +3142,13 @@ async def hire_name(message: Message, state: FSMContext):
         await bot.edit_message_text(message_id=message.message_id, text=text.get(language),
                                     chat_id=message.from_user.id, reply_markup=await hire(language))
         return
-    if message.text[:1]=='🏠':
+    if message.text[:1] == '🏠':
         text = {'ru': "Главное меню",  # Text in Russian
                 'en': "Main Menu",  # Text in English
                 'uz': "Bosh menu"  # Text in Uzbek
                 }
         await bot.edit_message_text(message_id=message.message_id, chat_id=message.from_user.id,
-                                    text=text.get(language),
-                                    reply_markup=await home(language, message.from_user.id))
+                                    text=text.get(language), reply_markup=await home(language, message.from_user.id))
         return
     if any(part.isdigit() for part in name_parts) or len(name_parts) < 2:
         text = {'uz': 'FIO ingizni kiriting:\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
@@ -3148,12 +3166,11 @@ async def hire_name(message: Message, state: FSMContext):
     await state.update_data(name=full_name)
 
     # Proceed to next step
-    text = {
-        'uz': '📞 Telefon raqamingizni kiriting yoki 👇 pastdagi tugmani bosing\n\n📌 Namuna: +998901234567',
-        'ru': '📞 Введите свой номер телефона или нажмите 👇 на кнопку ниже\n\n📌 Пример: +798901234567',
-        'en': '📞 Enter your phone number or click 👇 the button below\n\n📌 Example: +1234567890',
-    }
-    await bot.send_message(chat_id=message.from_user.id, text=text.get(language), reply_markup=await share_phone_number(language))
+    text = {'uz': '📞 Telefon raqamingizni kiriting yoki 👇 pastdagi tugmani bosing\n\n📌 Namuna: +998901234567',
+            'ru': '📞 Введите свой номер телефона или нажмите 👇 на кнопку ниже\n\n📌 Пример: +798901234567',
+            'en': '📞 Enter your phone number or click 👇 the button below\n\n📌 Example: +1234567890', }
+    await bot.send_message(chat_id=message.from_user.id, text=text.get(language),
+                           reply_markup=await share_phone_number(language))
 
     # Set state for next input
     await state.set_state(Hire.number)
@@ -3171,7 +3188,7 @@ async def hire_name(message: Message, state: FSMContext):
 async def types(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(callback_query.from_user.id)
     if len(callback_query.data.split('_')) == 3:
-        await state.update_data(stater=callback_query.data.split('_')[2])
+        await state.update_data(stater=callback_query.data.split('_')[1])
         await state.update_data(state_fake=callback_query.data.split('.')[1])
     text = {'uz': '📝 FIO ingizni kiriting:\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
             'ru': '📝 Введите ваше ФИО:\nПример: Абдулхаев Хусабвой Солижонович',
@@ -3183,40 +3200,20 @@ async def types(callback_query: CallbackQuery, state: FSMContext):
 
 
 @dp.message(Hire.number)
-async def take_user_number_hire(message:Message,state:FSMContext):
+async def take_user_number_hire(message: Message, state: FSMContext):
     language = await get_user_language(message.from_user.id)
-
-    if message.text[:1]=='🔙':
-        text = {'uz': '📝 FIO ingizni kiriting:\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
-                'ru': '📝 Введите ваше ФИО:\nПример: Абдулхаев Хусабвой Солижонович',
-                'en': '📝 Enter your Full Name:\nExample: Abdulkhaev Xusabvoy Solijonivich', }
-        await bot.edit_message_text(text=text.get(language), chat_id=message.from_user.id,
-                                    message_id=message.message_id)
-        await state.set_state(Hire.name)
-        await delete_previous_messages(message.message_id, message.from_user.id)
-        return
-    if message.text[:1]=='🏠':
-        text = {'ru': "Главное меню",  # Text in Russian
-                'en': "Main Menu",  # Text in English
-                'uz': "Bosh menu"  # Text in Uzbek
-                }
-        await bot.edit_message_text(message_id=message.message_id, chat_id=message.from_user.id,
-                                    text=text.get(language),
-                                    reply_markup=await home(language, message.from_user.id))
-        await state.clear()
-        return
     if message.contact:
         await state.update_data(number=message.contact.phone_number)
     if message.text:
         if message.text[:1] == '🔙':
-            text = {'uz': '🖋️ To`liq ismingizni yozing\nMisol uchun: Abdulkhaev Xusanboy',
-                    'ru': '🖋️ Напишите ваше полное имя\nПример: Абдулхаев Хусановбой',
-                    'en': '🖋️ Please write your full name\nExample: Abdulkhaev Xusanboy'}
+            text = {'uz': '📝 FIO ingizni kiriting:\nMisol uchun: Abdulkhaev Xusabvoy Solijonivich',
+                    'ru': '📝 Введите ваше ФИО:\nПример: Абдулхаев Хусабвой Солижонович',
+                    'en': '📝 Enter your Full Name:\nExample: Abdulkhaev Xusabvoy Solijonivich', }
 
             # Use the language directly from the callback query or user data
-            await bot.edit_message_text(message_id=message.message_id, chat_id=message.from_user.id,
-                                        text=text.get(language)  # Default to English if language not found
-                                        )
+            await bot.send_message(chat_id=message.from_user.id, text=text.get(language),
+                                   reply_markup=await back_home(language)  # Default to English if language not found
+                                   )
 
             await state.set_state(Register.fullname)
             await bot.delete_message(message_id=message.message_id, chat_id=message.from_user.id)
@@ -3246,8 +3243,10 @@ async def take_user_number_hire(message:Message,state:FSMContext):
         if message.text[0] == '+':
             await state.update_data(number=message.text)
         await state.update_data(number=message.text)
-    text = {'uz': 'Necha yoshdasiz? Nechada 👇 tugmalardan tanlang', 'ru': 'Сколько вам лет? Выберите из кнопок ниже 👇',
-            'en': 'How old are you? Select from the buttons below 👇', }
+    text = {'uz': '👶 Yoshingizni kiriting. 👇 Quyidagi tugmalardan birini tanlang:',
+            'ru': '👶 Укажите ваш возраст. 👇 Выберите один из вариантов ниже:',
+            'en': '👶 Please enter your age. 👇 Select one of the options below:', }
+
     await bot.send_message(chat_id=message.from_user.id, text=text.get(language), reply_markup=await yhire(1))
     await state.set_state(Hire.start)
     await delete_previous_messages(message.message_id, message.from_user.id)
@@ -3292,13 +3291,13 @@ async def is_certificate2(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(callback_query.from_user.id)
     if len(callback_query.data.split('_')) == 3:
         await state.update_data(is_certificate=callback_query.data.split('_')[1])
-    print(callback_query.data)
     if callback_query.data.split('_')[1] == 'yes':
         text = {'uz': '🖼 Certifikat rasmini tashlang:', 'ru': '🖼 Отправьте фото сертификата:',
                 'en': '🖼 Upload the certificate image:', }
-        await bot.edit_message_text(message_id=callback_query.message.message_id, text=text.get(language),
-                                    chat_id=callback_query.from_user.id)
+        await bot.send_message(text=text.get(language), chat_id=callback_query.from_user.id,
+                               reply_markup=await back_home(language))
         await state.set_state(Hire.image_certificate)
+        await delete_previous_messages(callback_query.message.message_id, callback_query.from_user.id)
         return
     else:
         data = await state.get_data()
@@ -3317,9 +3316,26 @@ async def is_certificate2(callback_query: CallbackQuery, state: FSMContext):
 @dp.message(Hire.image_certificate)
 async def hire_images3(message: Message, state: FSMContext):
     language = await get_user_language(message.from_user.id)
-
-    # Check if a photo exists in the message
     if not message.photo:
+        if message.text:
+            if message.text[:1] == '🔙':
+                text = {'uz': '📜 Sizning Certificatingiz bormi?', 'ru': '📜 У вас есть сертификат?',
+                        'en': '📜 Do you have a certificate?', }
+                await bot.edit_message_text(message_id=message.message_id, text=text.get(language),
+                                            chat_id=message.from_user.id,
+                                            reply_markup=await hexperience(language, 'is_certificate'))
+
+                return
+            if message.text[:1] == '🏠':
+                text = {'ru': "Главное меню",  # Text in Russian
+                        'en': "Main Menu",  # Text in English
+                        'uz': "Bosh menu"  # Text in Uzbek
+                        }
+                await bot.edit_message_text(message_id=message.message_id, chat_id=message.from_user.id,
+                                            text=text.get(language),
+                                            reply_markup=await home(language, message.from_user.id))
+                return
+            return
         text = {'uz': '❌ Certifikat rasmini yuboring.', 'ru': '❌ Отправьте фотографию сертификата.',
                 'en': '❌ Please upload the certificate image.', }
 
@@ -3328,22 +3344,15 @@ async def hire_images3(message: Message, state: FSMContext):
 
         await message.answer(response_text)
         return
-
     # Get the user's data from state
     data = await state.get_data()
     stater = data.get('stater')  # Position the user is applying for
     name = data.get('name')  # User's full name
-
+    number = data.get('number')
     # Create a safe file name for saving the certificate image
-    inf = f"Hire/{stater}/{name.replace(' ', '_')}_certificate.jpg"
-
-    # Update the state with the file path
-    await state.update_data(image_certificate=inf)
-
-    # Try to download the photo and handle potential errors
+    inf = f"Hire/{stater}/{name.replace(' ', '_')}.jpg"
     try:
-        # Download the image from Telegram (this function must be implemented)
-        download_path = await download_image2(bot, message, name, stater)
+        download_path = await state.update_data(image_certificate=await download_image2(bot, message, name, stater))
         if not download_path:
             await message.answer("❌ Failed to download the image.")
             return
@@ -3352,12 +3361,12 @@ async def hire_images3(message: Message, state: FSMContext):
         return
 
     # Prepare the summary text to send to the user
-    text = {'uz': (f"👤 Ism sharifingiz: {name}\n🗓️ Tug'ilgan yilingiz: {data.get('year')}\n"
-                   f"🗂️ Tanlagan kasbingiz: {data.get('state_fake')}\n🏅 Tajribangiz: {'Bor' if data.get('experience') == 'Yes' else 'Yo`q'}"),
-            'ru': (f"👤 Ваше имя: {name}\n🗓️ Год вашего рождения: {data.get('year')}\n"
-                   f"🗂️ Ваша выбранная профессия: {data.get('state_fake')}\n🏅 Ваш опыт: {'Bor' if data.get('experience') == 'Yes' else 'Yo`q'}"),
-            'en': (f"👤 Your full name: {name}\n🗓️ Year of birth: {data.get('year')}\n"
-                   f"🗂️ Chosen profession: {data.get('state_fake')}\n🏅 Experience: {'Bor' if data.get('experience') == 'Yes' else 'Yo`q'}")}
+    text = {'uz': (f"👤 Ism sharifingiz: {name}\n🗓️ Tug'ilgan yilingiz: {data.get('year')}\nTelefon raqamingiz: {number}\n"
+                   f"🗂️ Tanlagan kasbingiz: {data.get('state_fake')}\n🏅 Tajribangiz: {'Ha' if data.get('experience') == 'yes' else 'Yo`q'}"),
+        'ru': (f"👤 Ваше имя: {name}\n🗓️ Год вашего рождения: {data.get('year')}\n"
+               f"🗂️ Ваша выбранная профессия: {data.get('state_fake')}\n🏅 Ваш опыт: {'Да' if data.get('experience') == 'yes' else 'Нет'}"),
+        'en': (f"👤 Your full name: {name}\n🗓️ Year of birth: {data.get('year')}\n"
+               f"🗂️ Chosen profession: {data.get('state_fake')}\n🏅 Experience: {'Yes' if data.get('experience') == 'yes' else 'No'}")}
 
     # Send the photo and user details to the user
     try:
@@ -3387,17 +3396,25 @@ async def confirm3(callback_query: CallbackQuery, state: FSMContext):
     img_path = data.get('image_certificate') if data.get('image_certificate') is not None else ' '
     number = data.get('number')
     language = await get_user_language(callback_query.from_user.id)
-    text = {'uz': "📲 Agar siz bizga kerak bo'lsangiz, biz sizga 🤖 bot orqali aloqaga chiqamiz.",
-            'ru': "📲 Если вы нам нужны, мы свяжемся с вами через 🤖 бота.",
-            'en': "📲 If you need us, we will contact you via 🤖 the bot.", }
+    text = {
+        'uz': (
+            f"👤 **Ism sharifingiz**: {name}\n🗓️ **Tug'ilgan yilingiz**: {data.get('year')}\n📞 **Telefon raqamingiz**: {number}\n"
+            f"🗂️ **Kasbingiz**: {data.get('state_fake')}\n🏅 **Tajribangiz**: {'Ha' if data.get('experience') == 'yes' else 'Yo`q'}"),
+        'ru': (f"👤 **Ваше имя**: {name}\n🗓️ **Год рождения**: {data.get('year')}\n📞 **Ваш телефон**: {number}\n"
+               f"🗂️ **Ваша профессия**: {data.get('state_fake')}\n🏅 **Ваш опыт**: {'Да' if data.get('experience') == 'yes' else 'Нет'}"),
+        'en': (
+            f"👤 **Your full name**: {name}\n🗓️ **Year of birth**: {data.get('year')}\n📞 **Your phone number**: {number}\n"
+            f"🗂️ **Chosen profession**: {data.get('state_fake')}\n🏅 **Experience**: {'Yes' if data.get('experience') == 'yes' else 'No'}")
+    }
     text2 = {'uz': '🏠 Bosh menu', 'ru': '🏠 Bosh menu', 'en': '🏠 Bosh menu', }
     await bot.send_message(chat_id=callback_query.message.chat.id, text=text.get(language),
                            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                               [InlineKeyboardButton(text=text2.get(language), callback_data='menu_')]]))
+                               [InlineKeyboardButton(text=text2.get(language), callback_data='menu_')]]),parse_mode='Markdown')
+    await   asyncio.create_task(send_hired_to_php(tg_id=callback_query.from_user.id,name=name,number=number,status=status,exp=experience,img_path=img_path,year=year))
     await hire_employee(tg_id=str(callback_query.from_user.id),
                         username=callback_query.from_user.username if callback_query.from_user.username else 'no username',
                         year=year, certificate=certificate, experience=experience, image=img_path, status=status,
-                        name=name,number=number)
+                        name=name, number=number)
     await state.clear()
     try:
         await bot.delete_message(message_id=callback_query.message.message_id, chat_id=callback_query.from_user.id)
@@ -3521,6 +3538,7 @@ async def complain32(callback_query: CallbackQuery, state: FSMContext):
     for manager_id in managers:
         await bot.send_message(chat_id=manager_id, text=text3.get(language),
                                reply_markup=await complain_level_manager(language, id))
+    await fetch_and_send_complain_data(callback_query.from_user.id,'not choosen',message,teacher_name,teacher)
     await state.set_state(Complain.start)
     await state.clear()
     await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id)
@@ -3538,6 +3556,9 @@ async def mlevel_(callback_query: CallbackQuery):
             'en': f'🔔 You have set the level of this complaint to {data}', }
     await callback_query.answer(text=text.get(language), show_alert=True)
     await callback_query.message.delete()
+    com = await take_complainer(tg_id)
+    for comes in com:
+        await fetch_and_send_complain_data(tg_id,data,comes.text,comes.to_whom,comes.teacher_type)
 
 
 # ------------------------------------change users role-----------------------------------------------------------------#
@@ -3725,7 +3746,7 @@ async def all_complains_(callback_query: CallbackQuery):
             f'{"❓ Not yet assigned" if all_complain.level == "Not chosen" else "📊 Normal" if all_complain.level == "normal" else "🚫 Not a complaint" if all_complain.level == "delete" else "🔥 Serious"}\n\n'
             f'🔧 If you want to modify this complaint, press the button below.')}
         await bot.send_message(text=text.get(language), chat_id=callback_query.from_user.id,
-                               reply_markup=await complain_level_manager(language, all_complain.complainer_tg_id))
+                               reply_markup=await complain_level_manager(language, all_complain.id))
     text2 = {'ru': "Главное меню",  # Text in Russian
              'en': "Main Menu",  # Text in English
              'uz': "Bosh menu"  # Text in Uzbek
@@ -4160,17 +4181,20 @@ async def receive_data(id: int = Query(...), message: str = Query(...)):
     return {"status": "success", "id": id, "message": message}
 
 
+@app.get("/image/{image_path:path}")
+async def serve_image(image_path: str):
+    decoded_path = unquote(image_path)
+    print(decoded_path)
+    file_path = decoded_path
+    return FileResponse(file_path)
+
+
 # --------------------------------- Polling the bot --------------------------------------------------------------------#
 async def start_bot():
     """Starts the bot and its background tasks."""
     await init()
     print(f'Bot started at {formatted_time}')
-
-    # Schedule background tasks
     asyncio.create_task(fetch_and_send_registering_data())
-    asyncio.create_task(fetch_and_send_complain_data())
-
-    # Start polling
     try:
         await dp.start_polling(bot, skip_updates=True)
     finally:
