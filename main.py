@@ -3410,7 +3410,6 @@ async def confirm3(callback_query: CallbackQuery, state: FSMContext):
     await bot.send_message(chat_id=callback_query.message.chat.id, text=text.get(language),
                            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                                [InlineKeyboardButton(text=text2.get(language), callback_data='menu_')]]),parse_mode='Markdown')
-    await   asyncio.create_task(send_hired_to_php(tg_id=callback_query.from_user.id,name=name,number=number,status=status,exp=experience,img_path=img_path,year=year))
     await hire_employee(tg_id=str(callback_query.from_user.id),
                         username=callback_query.from_user.username if callback_query.from_user.username else 'no username',
                         year=year, certificate=certificate, experience=experience, image=img_path, status=status,
@@ -3538,7 +3537,6 @@ async def complain32(callback_query: CallbackQuery, state: FSMContext):
     for manager_id in managers:
         await bot.send_message(chat_id=manager_id, text=text3.get(language),
                                reply_markup=await complain_level_manager(language, id))
-    await fetch_and_send_complain_data(callback_query.from_user.id,'not choosen',message,teacher_name,teacher)
     await state.set_state(Complain.start)
     await state.clear()
     await bot.delete_message(chat_id=callback_query.from_user.id, message_id=callback_query.message.message_id)
@@ -3556,9 +3554,6 @@ async def mlevel_(callback_query: CallbackQuery):
             'en': f'🔔 You have set the level of this complaint to {data}', }
     await callback_query.answer(text=text.get(language), show_alert=True)
     await callback_query.message.delete()
-    com = await take_complainer(tg_id)
-    for comes in com:
-        await fetch_and_send_complain_data(tg_id,data,comes.text,comes.to_whom,comes.teacher_type)
 
 
 # ------------------------------------change users role-----------------------------------------------------------------#
