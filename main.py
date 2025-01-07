@@ -22,7 +22,7 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase
 
-app = FastAPI()
+# app = FastAPI()
 
 token = '7874928619:AAHdmduqLLfYUQF-Tgw_aXYcMp41X3maLTc'
 bot = Bot(token=token)
@@ -40,67 +40,67 @@ hire23 = '/create'
 CSRF_TOKEN = "oWYKV5bgVfEHQ7avAFbK1IO9xcXqdAM6WUv75y7D"
 
 
-async def send_to_php_api(data, url):
-    async with httpx.AsyncClient() as client:
-        try:
+# async def send_to_php_api(data, url):
+#     async with httpx.AsyncClient() as client:
+#         try:
 
-            response = await client.post(PHP_API_URL + url, json=data, )
-            if response.status_code == 201:
-                print(f"Data sent successfully")
-                return True
-            else:
+#             response = await client.post(PHP_API_URL + url, json=data, )
+#             if response.status_code == 201:
+#                 print(f"Data sent successfully")
+#                 return True
+#             else:
 
-                return False
-        except httpx.RequestError as e:
-            return False
-
-
-async def fetch_and_send_registering_data():
-    while True:  # Continuous loop
-        async with async_session() as session:
-            try:
-                # Fetch records with 'is_connected != "yes"'
-                query = select(Registering)
-                result = await session.execute(query)
-                records = result.scalars().all()
-                for record in records:
-                    data = {'id': int(record.id), "gender": "male" if record.gender == '🤵 Erkak kishi' else "female",
-                            "user_id": int(record.tg_id), "full_name": record.user_name,
-                            "status": 'uncalled' if record.is_connected == 'no' else 'called',
-                            "birthday": record.born_year, "group": record.course, "comment": record.comment_for_call,
-                            "phone_number": str(record.number), 'created_at': str(record.registered_time),
-                            'time': str(record.time), 'level': str(record.level)}
-
-                if await send_to_php_api(data, user):
-                    record.is_connected = "yes"
-
-                # Commit changes
-                await session.commit()
-
-            except Exception as e:
-                pass
-        await asyncio.sleep(10)  # Wait 10 seconds before rechecking
+#                 return False
+#         except httpx.RequestError as e:
+#             return False
 
 
-async def fetch_and_send_complain_data(tg_id,level,text,to_whom,teacher_type):
-                data = {"user_id": int(tg_id), "rating": str(level),
-                            "message": text, 'created_at': str(time), 'title': str(to_whom),
-                            'type': str(teacher_type)}
+# async def fetch_and_send_registering_data():
+#     while True:  # Continuous loop
+#         async with async_session() as session:
+#             try:
+#                 # Fetch records with 'is_connected != "yes"'
+#                 query = select(Registering)
+#                 result = await session.execute(query)
+#                 records = result.scalars().all()
+#                 for record in records:
+#                     data = {'id': int(record.id), "gender": "male" if record.gender == '🤵 Erkak kishi' else "female",
+#                             "user_id": int(record.tg_id), "full_name": record.user_name,
+#                             "status": 'uncalled' if record.is_connected == 'no' else 'called',
+#                             "birthday": record.born_year, "group": record.course, "comment": record.comment_for_call,
+#                             "phone_number": str(record.number), 'created_at': str(record.registered_time),
+#                             'time': str(record.time), 'level': str(record.level)}
 
-                await send_to_php_api(data, report)
+#                 if await send_to_php_api(data, user):
+#                     record.is_connected = "yes"
 
-async def send_hired_to_php(tg_id,name,number,status,exp,img_path,year):
-    data = {
-        'tg_id':int(tg_id),
-        'name':name,
-        'number':number,
-        'status':status,
-        'experience':exp,
-        'year':year,
-        'created_at':formatted_time,
-        'img_path':img_path,
-    }
-    await send_to_php_api(data,'/create')
+#                 # Commit changes
+#                 await session.commit()
+
+#             except Exception as e:
+#                 pass
+#         await asyncio.sleep(10)  # Wait 10 seconds before rechecking
+
+
+# async def fetch_and_send_complain_data(tg_id,level,text,to_whom,teacher_type):
+#                 data = {"user_id": int(tg_id), "rating": str(level),
+#                             "message": text, 'created_at': str(time), 'title': str(to_whom),
+#                             'type': str(teacher_type)}
+
+#                 await send_to_php_api(data, report)
+
+# async def send_hired_to_php(tg_id,name,number,status,exp,img_path,year):
+#     data = {
+#         'tg_id':int(tg_id),
+#         'name':name,
+#         'number':number,
+#         'status':status,
+#         'experience':exp,
+#         'year':year,
+#         'created_at':formatted_time,
+#         'img_path':img_path,
+#     }
+#     await send_to_php_api(data,'/create')
 # ------------------------------------database--------------------------------------------------------------------------#
 
 
@@ -4174,49 +4174,49 @@ async def deleter(message: Message):
         print("Failed to delete message:", error)
 
 
-@app.get("/get")  # Use GET for query parameters
-async def receive_data(id: int = Query(...), message: str = Query(...)):
-    print(f"Received data: id={id}, message={message}")
-    await send_feedback_to_user(message, id)
-    return {"status": "success", "id": id, "message": message}
+# @app.get("/get")  # Use GET for query parameters
+# async def receive_data(id: int = Query(...), message: str = Query(...)):
+#     print(f"Received data: id={id}, message={message}")
+#     await send_feedback_to_user(message, id)
+#     return {"status": "success", "id": id, "message": message}
 
 
-@app.get("/image/{image_path:path}")
-async def serve_image(image_path: str):
-    decoded_path = unquote(image_path)
-    print(decoded_path)
-    file_path = decoded_path
-    return FileResponse(file_path)
+# @app.get("/image/{image_path:path}")
+# async def serve_image(image_path: str):
+#     decoded_path = unquote(image_path)
+#     print(decoded_path)
+#     file_path = decoded_path
+#     return FileResponse(file_path)
 
 
 # --------------------------------- Polling the bot --------------------------------------------------------------------#
-async def start_bot():
-    """Starts the bot and its background tasks."""
-    await init()
-    print(f'Bot started at {formatted_time}')
-    asyncio.create_task(fetch_and_send_registering_data())
-    try:
-        await dp.start_polling(bot, skip_updates=True)
-    finally:
-        await bot.session.close()  # Cleanly close the bot session
+# async def start_bot():
+#     """Starts the bot and its background tasks."""
+#     await init()
+#     print(f'Bot started at {formatted_time}')
+#     asyncio.create_task(fetch_and_send_registering_data())
+#     try:
+#         await dp.start_polling(bot, skip_updates=True)
+#     finally:
+#         await bot.session.close()  # Cleanly close the bot session
 
 
-async def start_web_server():
-    """Starts the Uvicorn web server."""
-    config = uvicorn.Config(app, host="127.0.0.1", port=8000, loop="asyncio")
-    server = uvicorn.Server(config)
-    await server.serve()
+# async def start_web_server():
+#     """Starts the Uvicorn web server."""
+#     config = uvicorn.Config(app, host="127.0.0.1", port=8000, loop="asyncio")
+#     server = uvicorn.Server(config)
+#     await server.serve()
 
 
-async def main():
-    """Runs the bot and the web server concurrently."""
-    # Run bot and web server concurrently
-    await asyncio.gather(start_bot(), start_web_server())
+# async def main():
+#     """Runs the bot and the web server concurrently."""
+#     # Run bot and web server concurrently
+#     await asyncio.gather(start_bot(), start_web_server())
 
 
 if __name__ == '__main__':
     try:
-        asyncio.run(main())
+        asyncio.run(dp.start_polling(bot, skip_updates=True))
     except KeyboardInterrupt:
         print(f'Bot stopped by Ctrl+C at {formatted_time}')
     except Exception as e:
