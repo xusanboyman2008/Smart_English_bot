@@ -5,7 +5,7 @@ from datetime import datetime
 from time import localtime, sleep
 from typing import Callable, Dict, Any, Awaitable
 from urllib.parse import unquote
-
+from keep_alive import keep_alive
 import httpx
 import uvicorn
 from aiogram import Bot, Dispatcher, F, BaseMiddleware
@@ -4211,6 +4211,7 @@ async def deleter(message: Message):
 
 if __name__ == '__main__':
     try:
+        keep_alive()
         asyncio.run(dp.start_polling(bot, skip_updates=True))
     except KeyboardInterrupt:
         print(f'Bot stopped by Ctrl+C at {formatted_time}')
